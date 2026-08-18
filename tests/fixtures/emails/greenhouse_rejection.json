@@ -1,0 +1,18 @@
+{
+  "message_id": "fixture-gh-reject-001",
+  "thread_id": "fixture-gh-thread-002",
+  "received_at": "2026-07-24T09:31:02+00:00",
+  "from_email": "no-reply@us.greenhouse-mail.io",
+  "from_name": "Acme Robotics",
+  "to_email": "candidate@example.com",
+  "subject": "Thanks for applying to Acme Robotics",
+  "body_text": "Hi Alex,\n\nThanks for applying to Acme Robotics and for your interest in the Senior Software Engineer, Platform role.\n\nAfter careful consideration, we have decided not to move forward with your application at this time. We received a large number of applications and unfortunately are moving ahead with other candidates whose experience more closely matches our current needs.\n\nWe appreciate the time you invested and encourage you to apply for future openings.\n\nBest,\nThe Acme Robotics Recruiting Team",
+  "snippet": "Thanks for applying to Acme Robotics and for your interest in the Senior Software Engineer, Platform role",
+  "labels": ["INBOX", "CATEGORY_UPDATES"],
+  "headers": {
+    "from": "Acme Robotics <no-reply@us.greenhouse-mail.io>",
+    "reply-to": "no-reply@greenhouse.io",
+    "list-unsubscribe": "<https://boards.greenhouse.io/unsubscribe/abc123>",
+    "message-id": "<gh-reject-001@greenhouse.io>"
+  }
+}

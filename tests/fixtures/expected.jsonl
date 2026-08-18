@@ -1,0 +1,6 @@
+# Golden classification expectations, one JSON object per line, keyed by fixture stem.
+# CLAUDE.md: adding a pattern to patterns.py REQUIRES adding a fixture that exercises it,
+# including at least one negative. Replace these synthetic seeds with redacted real mail.
+{"fixture": "greenhouse_confirmation", "event_type": "application_received", "company": "Acme Robotics", "role": "Senior Software Engineer, Platform", "ats": "greenhouse", "note": "positive: the confirmation half of the confusable pair"}
+{"fixture": "greenhouse_rejection", "event_type": "rejection", "company": "Acme Robotics", "role": "Senior Software Engineer, Platform", "ats": "greenhouse", "note": "NEGATIVE CONTROL: identical subject to the confirmation, opens with 'Thanks for applying'. Must NOT classify as application_received. This is the whole reason EVENT_PRECEDENCE exists."}
+{"fixture": "newsletter_unknown", "event_type": "unknown", "company": null, "role": null, "ats": null, "note": "negative: job-adjacent vocabulary ('interview', 'application', 'ghosted') but not job mail"}

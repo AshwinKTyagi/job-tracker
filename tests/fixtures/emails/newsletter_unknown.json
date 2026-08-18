@@ -1,0 +1,17 @@
+{
+  "message_id": "fixture-noise-001",
+  "thread_id": "fixture-noise-thread-001",
+  "received_at": "2026-07-10T11:00:00+00:00",
+  "from_email": "digest@techweekly.example",
+  "from_name": "Tech Weekly",
+  "to_email": "candidate@example.com",
+  "subject": "This week: 12 companies hiring, interview tips, and more",
+  "body_text": "Your weekly digest.\n\nThis week we look at how to prepare for a system design interview, why your application might be getting ghosted, and 12 companies hiring engineers right now.\n\nUnsubscribe at any time.",
+  "snippet": "Your weekly digest. This week we look at how to prepare for a system design interview",
+  "labels": ["INBOX", "CATEGORY_PROMOTIONS"],
+  "headers": {
+    "from": "Tech Weekly <digest@techweekly.example>",
+    "list-unsubscribe": "<https://techweekly.example/unsub>",
+    "message-id": "<noise-001@techweekly.example>"
+  }
+}
