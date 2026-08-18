@@ -27,6 +27,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
+    "pytest-socket>=0.7",
     "ruff>=0.6",
     "black>=24.0",
     "mypy>=1.11",
@@ -71,5 +72,8 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+# --disable-socket enforces CLAUDE.md's "no network in tests, ever". A test that reaches
+# for the Gmail API or an Ollama host fails loudly instead of silently depending on the
+# network. Unix sockets stay open because some local tooling needs them.
+addopts = "-q --strict-markers --disable-socket --allow-unix-socket"
 filterwarnings = ["error::DeprecationWarning:jobtrack.*"]

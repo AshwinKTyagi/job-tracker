@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same branch supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: lint / types / tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+
+      # Gates below mirror CLAUDE.md "Definition of done" exactly, so a module that
+      # passes locally passes here. Each runs even if an earlier one fails, so a red
+      # build reports every problem at once rather than one per push.
+      - name: ruff (lint)
+        if: '!cancelled()'
+        run: ruff check src tests
+
+      - name: black (format)
+        if: '!cancelled()'
+        run: black --check --diff src tests
+
+      - name: mypy (strict)
+        if: '!cancelled()'
+        run: mypy src/jobtrack
+
+      - name: pytest
+        if: '!cancelled()'
+        # --disable-socket comes from pyproject addopts: tests must never touch the network.
+        run: pytest --cov=jobtrack --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage
+        if: '!cancelled() && matrix.python-version == ''3.11'''
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: warn
+
+  secrets-guard:
+    name: no secrets committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cheap, deterministic backstop for the rule that matters most in this repo:
+      # OAuth tokens, client secrets, and the database must never be committed.
+      - name: Assert no credential or data files are tracked
+        run: |
+          set -euo pipefail
+          # One fail-closed pattern check over the whole index. Do NOT use
+          # `git ls-files --error-unmatch a b c`: it exits nonzero when ANY path is
+          # untracked, so a single committed secret would pass the guard unnoticed.
+          offenders="$(git ls-files | grep -E \
+            '(^|/)(credentials|token)\.json$|(^|/)config\.toml$|\.(db|sqlite3?)$' || true)"
+          if [ -n "$offenders" ]; then
+            echo "::error::Tracked files that must be gitignored:"
+            echo "$offenders"
+            exit 1
+          fi
+          echo "No credential, token, config, or database files are tracked."
+
+      - name: Assert the Gmail scope stays read-only
+        run: |
+          set -euo pipefail
+          # Invariant I11: the tool reads mail and must never be able to modify it.
+          # Extract each scope TOKEN with -o rather than filtering whole lines. A line
+          # like [".../gmail.readonly", ".../gmail.modify"] would survive a line-based
+          # `grep -v readonly`, letting a mutating scope through unnoticed.
+          bad="$(grep -rhoE 'auth/gmail\.[a-z.]+' src/ --include='*.py' \
+                 | sort -u | grep -vx 'auth/gmail\.readonly' || true)"
+          # https://mail.google.com/ is the unrestricted-mailbox scope under another name.
+          full="$(grep -rhoE 'https://mail\.google\.com' src/ --include='*.py' || true)"
+          if [ -n "$bad" ] || [ -n "$full" ]; then
+            echo "::error::A non-readonly Gmail scope was introduced (invariant I11):"
+            [ -n "$bad" ] && echo "$bad"
+            [ -n "$full" ] && echo "$full"
+            exit 1
+          fi
+          echo "Gmail scope is readonly-only."
