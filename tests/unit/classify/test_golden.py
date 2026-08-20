@@ -76,7 +76,6 @@ def test_confusable_pair_is_not_confused(email_fixtures: list[tuple[str, RawMess
     )
     assert confirmation.event_type is EventType.APPLICATION_RECEIVED
     assert rejection.event_type is EventType.REJECTION
-    assert rejection.event_type is not EventType.APPLICATION_RECEIVED
 
 
 def test_golden_fixtures_classify_deterministically(

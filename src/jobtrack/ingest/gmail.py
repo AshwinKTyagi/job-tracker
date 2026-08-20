@@ -168,7 +168,7 @@ def _decode_mime_header(value: str) -> str:
         return value
     try:
         return str(make_header(decode_header(value)))
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError, LookupError):
         return value
 
 

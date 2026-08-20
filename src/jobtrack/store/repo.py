@@ -409,13 +409,11 @@ class Store(_ConnectionMixin):
             StoreError: the query failed.
         """
         try:
-            rows = self._connection.execute(
-                """
+            rows = self._connection.execute("""
                 SELECT application_id, company, company_key, role, location, ats, applied_at
                 FROM applications
                 ORDER BY applied_at ASC
-                """
-            ).fetchall()
+                """).fetchall()
         except sqlite3.Error as exc:
             raise StoreError(f"could not list applications: {exc}") from exc
 

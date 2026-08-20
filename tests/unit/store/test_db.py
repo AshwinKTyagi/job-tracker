@@ -76,7 +76,8 @@ def test_events_message_id_is_unique(db_path: Path) -> None:
         store.migrate()
         store._connection.execute(
             "INSERT INTO messages (message_id, thread_id, received_at, from_email, ingested_at) "
-            "VALUES ('m1', 't1', '2026-01-01T00:00:00+00:00', 'a@b.com', '2026-01-01T00:00:00+00:00')"
+            "VALUES ('m1', 't1', '2026-01-01T00:00:00+00:00', 'a@b.com', "
+            "'2026-01-01T00:00:00+00:00')"
         )
         store._connection.execute(
             "INSERT INTO events (message_id, event_type, occurred_at, created_at) "

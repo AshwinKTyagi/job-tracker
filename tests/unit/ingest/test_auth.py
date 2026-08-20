@@ -23,9 +23,7 @@ from jobtrack.ingest import auth
 from jobtrack.ingest.auth import GMAIL_SCOPES
 
 
-def _write_token(
-    config: Config, *, expired: bool = False, has_refresh_token: bool = True
-) -> None:
+def _write_token(config: Config, *, expired: bool = False, has_refresh_token: bool = True) -> None:
     config.home.mkdir(parents=True, exist_ok=True)
     expiry = datetime.now(UTC) + (timedelta(hours=-1) if expired else timedelta(hours=1))
     data: dict[str, Any] = {
@@ -51,9 +49,9 @@ class _FakeCredentials:
 
 
 def test_gmail_scopes_is_read_only_and_matches_constants() -> None:
-    from jobtrack.constants import GMAIL_SCOPES as constants_scopes
+    from jobtrack import constants
 
-    assert auth.GMAIL_SCOPES == list(constants_scopes)
+    assert list(constants.GMAIL_SCOPES) == auth.GMAIL_SCOPES
     assert auth.GMAIL_SCOPES == ["https://www.googleapis.com/auth/gmail.readonly"]
 
 
@@ -141,6 +139,33 @@ def test_load_credentials_refresh_failure_raises_autherror(
         auth.load_credentials(tmp_config)
 
 
+def test_load_credentials_malformed_token_raises(tmp_config: Config) -> None:
+    tmp_config.home.mkdir(parents=True, exist_ok=True)
+    tmp_config.token_path.write_text("not valid json")
+
+    with pytest.raises(AuthError):
+        auth.load_credentials(tmp_config)
+
+
+def test_load_credentials_persist_failure_raises_autherror(
+    tmp_config: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_token(tmp_config, expired=True, has_refresh_token=True)
+
+    def _fake_refresh(self: Credentials, request: Any) -> None:
+        self.token = "refreshed-access-token"
+        self.expiry = datetime.now(UTC) + timedelta(hours=1)
+
+    def _fail_chmod(path: Any, mode: int) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Credentials, "refresh", _fake_refresh)
+    monkeypatch.setattr(auth.os, "chmod", _fail_chmod)
+
+    with pytest.raises(AuthError):
+        auth.load_credentials(tmp_config)
+
+
 def test_load_credentials_expired_no_refresh_token_raises(tmp_config: Config) -> None:
     _write_token(tmp_config, expired=True, has_refresh_token=False)
 
@@ -192,6 +217,14 @@ def test_run_oauth_flow_success_persists_token(
     assert persisted["token"] == "granted-token"
     mode = stat.S_IMODE(os.stat(tmp_config.token_path).st_mode)
     assert mode == 0o600
+
+
+def test_run_oauth_flow_malformed_credentials_file_raises(tmp_config: Config) -> None:
+    tmp_config.home.mkdir(parents=True, exist_ok=True)
+    tmp_config.credentials_path.write_text("not valid json")
+
+    with pytest.raises(AuthError):
+        auth.run_oauth_flow(tmp_config)
 
 
 def test_run_oauth_flow_declined_consent_raises_autherror(

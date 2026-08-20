@@ -25,8 +25,10 @@ class _FakeHttpResponse:
 
 def make_http_error(status: int, reason: str = "error") -> HttpError:
     """Build an `HttpError` with a given status and reason, as googleapiclient would raise."""
-    body = ('{"error": {"message": "%s"}}' % reason).encode("utf-8")
-    return HttpError(_FakeHttpResponse(status, reason), body, uri="https://gmail.googleapis.com/fake")
+    body = f'{{"error": {{"message": "{reason}"}}}}'.encode()
+    return HttpError(
+        _FakeHttpResponse(status, reason), body, uri="https://gmail.googleapis.com/fake"
+    )
 
 
 class _FakeApiCall:

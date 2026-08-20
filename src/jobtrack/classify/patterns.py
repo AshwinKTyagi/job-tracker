@@ -291,7 +291,16 @@ ROLE_BODY_PATTERNS: tuple[RulePattern, ...] = (
 # --------------------------------------------------------------------------------------
 
 LOCATION_LABEL = re.compile(r"^location:\s*(?P<location>.+)$", re.IGNORECASE | re.MULTILINE)
-LOCATION_BASED_IN = re.compile(r"\bbased in\s+(?P<location>[A-Z][\w.,\s]+?)(?:[.\n]|$)")
+LOCATION_BASED_IN = re.compile(
+    r"""
+    \bbased\ in\s+
+    (?P<location>
+        [A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+)*          # one or more capitalized words (a city)
+        (?:,\s*[A-Z]{2}(?![a-zA-Z]))?                # optional ", ST" state code
+    )
+    """,
+    re.VERBOSE,
+)
 LOCATION_ARRANGEMENT = re.compile(r"\((?P<location>Remote|Hybrid|On-?site)\)", re.IGNORECASE)
 
 

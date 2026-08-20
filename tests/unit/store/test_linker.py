@@ -230,7 +230,11 @@ def test_derive_status_terminal_events_win(
 ) -> None:
     """Terminal events decide status regardless of what came before."""
     events = [
-        _event(event_id=1, event_type=EventType.APPLICATION_RECEIVED, occurred_at=NOW - timedelta(days=20)),
+        _event(
+            event_id=1,
+            event_type=EventType.APPLICATION_RECEIVED,
+            occurred_at=NOW - timedelta(days=20),
+        ),
         _event(event_id=2, event_type=EventType.INTERVIEW, occurred_at=NOW - timedelta(days=10)),
         _event(event_id=3, event_type=event_type, occurred_at=NOW - timedelta(days=5)),
     ]
@@ -260,7 +264,11 @@ def test_derive_status_furthest_non_terminal_stage(
 ) -> None:
     """Non-terminal: the furthest pipeline stage reached decides, when still fresh."""
     events = [
-        _event(event_id=1, event_type=EventType.APPLICATION_RECEIVED, occurred_at=NOW - timedelta(days=2)),
+        _event(
+            event_id=1,
+            event_type=EventType.APPLICATION_RECEIVED,
+            occurred_at=NOW - timedelta(days=2),
+        ),
         _event(event_id=2, event_type=event_type, occurred_at=NOW - timedelta(days=1)),
     ]
     assert derive_status(events, now=NOW, ghost_after_days=30) == expected
@@ -275,7 +283,7 @@ def test_derive_status_ghosted_when_stale_and_non_terminal() -> None:
 
 
 def test_derive_status_not_ghosted_at_exactly_the_threshold() -> None:
-    """"Older than" ghost_after_days is a strict inequality, not >=."""
+    """ "Older than" ghost_after_days is a strict inequality, not >=."""
     events = [
         _event(event_id=1, event_type=EventType.INTERVIEW, occurred_at=NOW - timedelta(days=30)),
     ]
@@ -290,7 +298,11 @@ def test_derive_status_empty_events_is_applied() -> None:
 def test_derive_status_is_deterministic() -> None:
     """Calling derive_status twice on the same input yields byte-identical output."""
     events = [
-        _event(event_id=1, event_type=EventType.APPLICATION_RECEIVED, occurred_at=NOW - timedelta(days=3)),
+        _event(
+            event_id=1,
+            event_type=EventType.APPLICATION_RECEIVED,
+            occurred_at=NOW - timedelta(days=3),
+        ),
         _event(event_id=2, event_type=EventType.INTERVIEW, occurred_at=NOW - timedelta(days=1)),
     ]
     first = derive_status(events, now=NOW, ghost_after_days=30)

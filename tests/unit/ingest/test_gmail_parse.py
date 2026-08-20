@@ -115,6 +115,44 @@ def test_parse_missing_body_yields_empty_text_and_headers() -> None:
     assert msg.headers == {}
 
 
+def test_parse_falls_back_to_raw_value_for_undecodable_mime_header() -> None:
+    payload: dict[str, Any] = {
+        "id": "msg-badheader-001",
+        "threadId": "thread-badheader-001",
+        "internalDate": "1751472251000",
+        "payload": {
+            "mimeType": "text/plain",
+            "headers": [
+                {"name": "From", "value": "no-reply@example.com"},
+                {"name": "Subject", "value": "=?UNKNOWN-CHARSET-XYZ?B?QQ==?="},
+            ],
+            "body": {"data": ""},
+        },
+    }
+
+    msg = parse_gmail_message(payload)
+
+    # Not validly decodable -> the raw encoded-word string passes through unchanged.
+    assert msg.subject == "=?UNKNOWN-CHARSET-XYZ?B?QQ==?="
+
+
+def test_parse_body_part_with_undecodable_base64_yields_empty_text() -> None:
+    payload: dict[str, Any] = {
+        "id": "msg-badbody-001",
+        "threadId": "thread-badbody-001",
+        "internalDate": "1751472251000",
+        "payload": {
+            "mimeType": "text/plain",
+            "headers": [],
+            "body": {"data": "!!!not-base64!!!"},
+        },
+    }
+
+    msg = parse_gmail_message(payload)
+
+    assert msg.body_text == ""
+
+
 def test_parse_lowercases_header_keys() -> None:
     payload: dict[str, Any] = {
         "id": "msg-headers-001",

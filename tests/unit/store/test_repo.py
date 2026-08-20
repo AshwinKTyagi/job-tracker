@@ -167,9 +167,7 @@ def test_second_application_created_for_different_company(
     store: Store, now: datetime, make_classification: Callable[..., Classification]
 ) -> None:
     msg_a = _message(message_id="msg-a", thread_id="thread-a")
-    msg_b = _message(
-        message_id="msg-b", thread_id="thread-b", from_email="no-reply@lever.co"
-    )
+    msg_b = _message(message_id="msg-b", thread_id="thread-b", from_email="no-reply@lever.co")
     store.record_message(msg_a)
     store.record_message(msg_b)
     store.link_and_record_event(
@@ -177,7 +175,11 @@ def test_second_application_created_for_different_company(
     )
     store.link_and_record_event(
         msg_b,
-        make_classification(message_id="msg-b", company="Wayne Enterprises", company_key="wayne enterprises"),
+        make_classification(
+            message_id="msg-b",
+            company="Wayne Enterprises",
+            company_key="wayne enterprises",
+        ),
         now=now,
     )
 

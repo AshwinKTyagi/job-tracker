@@ -12,9 +12,10 @@ from typing import Any
 
 import pytest
 from google.oauth2.credentials import Credentials
+from googleapiclient.errors import HttpError
 
 from jobtrack.errors import AuthError, PermanentIngestError, TransientIngestError
-from jobtrack.ingest.gmail import GmailSource
+from jobtrack.ingest.gmail import GmailSource, _header_map, _http_status
 from tests.unit.ingest.conftest import FakeGmailService, make_http_error, make_message_payload
 
 _FAKE_CREDENTIALS = Credentials(token="fake-access-token")  # never used: service is injected
@@ -314,7 +315,39 @@ def test_fetch_delta_timeout_raises_transient(monkeypatch: pytest.MonkeyPatch) -
         _make_source(service).fetch(query="q", cursor="900", limit=5)
 
 
-def test_service_is_built_from_credentials_when_not_injected(monkeypatch: pytest.MonkeyPatch) -> None:
+class _NoStatusResp:
+    """An HttpError.resp lookalike lacking a `.status` attribute entirely."""
+
+    reason = "opaque failure"
+
+
+def test_http_status_returns_none_when_status_attribute_missing() -> None:
+    exc = HttpError(_NoStatusResp(), b"{}", uri="https://gmail.googleapis.com/fake")
+    assert _http_status(exc) is None
+
+
+class _NonIntStatusResp:
+    status = "not-a-number"
+    reason = "weird gateway"
+
+
+def test_http_status_returns_none_when_status_is_not_convertible() -> None:
+    exc = HttpError(_NonIntStatusResp(), b"{}", uri="https://gmail.googleapis.com/fake")
+    assert _http_status(exc) is None
+
+
+def test_header_map_skips_entries_missing_name_or_value() -> None:
+    headers = [
+        {"name": "Subject", "value": "Hello"},
+        {"name": "Missing-Value"},
+        {"value": "missing-name"},
+    ]
+    assert _header_map(headers) == {"subject": "Hello"}
+
+
+def test_service_is_built_from_credentials_when_not_injected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The `service=None` branch delegates to googleapiclient's `build()`."""
     sentinel = object()
     calls: dict[str, Any] = {}

@@ -39,7 +39,19 @@ def test_score_confidence_adds_ats_detected() -> None:
         winning_type=EventType.APPLICATION_RECEIVED,
         evidence=[],
         company=None,
-        all_scores={EventType.APPLICATION_RECEIVED: ["ack.body.application_received"]},
+        all_scores={EventType.APPLICATION_RECEIVED: []},
+    )
+    assert score == CONFIDENCE_WEIGHTS["ats_detected"]
+
+
+def test_score_confidence_ats_and_body_pattern_combine() -> None:
+    evidence = ["ack.body.application_received"]
+    score = score_confidence(
+        ats="greenhouse",
+        winning_type=EventType.APPLICATION_RECEIVED,
+        evidence=evidence,
+        company=None,
+        all_scores={EventType.APPLICATION_RECEIVED: evidence},
     )
     assert score == CONFIDENCE_WEIGHTS["ats_detected"] + CONFIDENCE_WEIGHTS["body_pattern"]
 

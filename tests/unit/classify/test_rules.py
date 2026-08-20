@@ -49,9 +49,7 @@ MakeMessage = Callable[..., RawMessage]
         ("indeed", "indeed.com"),
     ],
 )
-def test_detect_ats_by_sender_domain(
-    make_message: MakeMessage, slug: str, domain: str
-) -> None:
+def test_detect_ats_by_sender_domain(make_message: MakeMessage, slug: str, domain: str) -> None:
     message = make_message(from_email=f"no-reply@{domain}")
     ats, evidence = detect_ats(message)
     assert ats == slug

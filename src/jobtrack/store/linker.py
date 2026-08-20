@@ -101,9 +101,7 @@ def match_application(
         role_matches.sort(key=lambda c: c.last_event_at, reverse=True)
         return role_matches[0].application_id
 
-    either_role_none = [
-        c for c in in_window if classification.role is None or c.role is None
-    ]
+    either_role_none = [c for c in in_window if classification.role is None or c.role is None]
     if either_role_none:
         either_role_none.sort(key=lambda c: c.last_event_at, reverse=True)
         return either_role_none[0].application_id
