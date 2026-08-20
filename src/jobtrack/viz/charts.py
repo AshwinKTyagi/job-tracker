@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from itertools import pairwise
 from typing import Final
 
 import pandas as pd
@@ -383,7 +384,7 @@ def compute_stage_flows(events_df: pd.DataFrame, applications_df: pd.DataFrame) 
     counts: dict[tuple[str, str], int] = {}
     for application_id in sorted(sequences):
         stages = sequences[application_id]
-        for source, target in zip(stages, stages[1:], strict=False):
+        for source, target in pairwise(stages):
             counts[(source, target)] = counts.get((source, target), 0) + 1
         last = stages[-1]
         if application_id in ghosted and last not in TERMINAL_STAGES:

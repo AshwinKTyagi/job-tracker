@@ -23,6 +23,7 @@ from jobtrack.constants import EVENT_COLUMNS, EXPORT_COLUMNS
 from jobtrack.errors import ExportError
 from jobtrack.models import ApplicationStatus
 from jobtrack.viz.charts import (
+    _require_columns,
     applications_over_time,
     compute_stage_flows,
     funnel_sankey,
@@ -32,6 +33,8 @@ from jobtrack.viz.charts import (
 )
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_CARD_HEIGHT: Final[int] = 420
 
 PLOTLY_CONFIG: Final[dict[str, object]] = {"displaylogo": False, "responsive": True}
 """Passed to every figure. No modebar image-export host, no telemetry, no network."""
@@ -131,9 +134,9 @@ def _summarize(applications_df: pd.DataFrame) -> _Summary:
             needs_review=0,
         )
 
-    total = int(len(applications_df))
+    total = len(applications_df)
     days = pd.to_numeric(applications_df["days_to_first_response"], errors="coerce").dropna()
-    responded = int(len(days))
+    responded = len(days)
     statuses = applications_df["status"].astype("str")
     counts = statuses.value_counts()
     flags = applications_df["needs_review"].fillna(False).astype("bool")
@@ -176,7 +179,7 @@ def _render_tiles(summary: _Summary) -> str:
     return '<section class="tiles">' + "".join(tiles) + "</section>"
 
 
-def _figure_card(figure: go.Figure, div_id: str, *, height: int = 420) -> str:
+def _figure_card(figure: go.Figure, div_id: str, *, height: int = _DEFAULT_CARD_HEIGHT) -> str:
     """Render one Figure as an HTML card, with plotly.js assumed already inlined."""
     fragment: str = figure.to_html(
         include_plotlyjs=False,
@@ -206,7 +209,8 @@ def _render_body(applications_df: pd.DataFrame, events_df: pd.DataFrame) -> str:
         _figure_card(response_time_histogram(applications_df), "chart-response"),
     ]
     companies = top_companies_bar(applications_df)
-    cards.append(_figure_card(companies, "chart-companies", height=int(companies.layout.height or 420)))
+    companies_height = int(companies.layout.height or _DEFAULT_CARD_HEIGHT)
+    cards.append(_figure_card(companies, "chart-companies", height=companies_height))
     return "".join(cards)
 
 
@@ -263,8 +267,6 @@ def build_dashboard(
     Raises:
         ExportError: either frame is missing a required column, or the path is not writable.
     """
-    from jobtrack.viz.charts import _require_columns  # noqa: PLC0415
-
     _require_columns(applications_df, EXPORT_COLUMNS, what="applications")
     _require_columns(events_df, EVENT_COLUMNS, what="events")
 
