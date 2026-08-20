@@ -12,7 +12,7 @@ import json
 import stat
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 from google.auth.exceptions import RefreshError
@@ -56,7 +56,7 @@ def write_token(
 class FakeFlow:
     """Stand-in for ``InstalledAppFlow``; records the scopes it was constructed with."""
 
-    last_scopes: list[str] = []
+    last_scopes: ClassVar[list[str]] = []
     outcome: BaseException | None = None
 
     def __init__(self, credentials: Any) -> None:
@@ -70,8 +70,9 @@ class FakeFlow:
 
     def run_local_server(self, port: int = 0) -> Any:
         """Mirror the real consent step."""
-        if type(self).outcome is not None:
-            raise type(self).outcome
+        outcome = type(self).outcome
+        if outcome is not None:
+            raise outcome
         return self._credentials
 
 
@@ -147,7 +148,8 @@ def test_refresh_failure_becomes_auth_error(
     write_token(tmp_config.token_path, expires_in_days=-1)
 
     def fake_refresh(credentials: Any) -> None:
-        raise RefreshError("token has been revoked")
+        # google-auth 2.x: RefreshError.__init__ is unannotated.
+        raise RefreshError("token has been revoked")  # type: ignore[no-untyped-call]
 
     monkeypatch.setattr(auth, "_refresh_in_place", fake_refresh)
     with pytest.raises(AuthError, match="revoked"):
@@ -171,9 +173,7 @@ def test_wider_scope_on_disk_is_reported(
     tmp_config: Config, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A token granting more than gmail.readonly must not pass unremarked (I11)."""
-    write_token(
-        tmp_config.token_path, scopes=["https://www.googleapis.com/auth/gmail.modify"]
-    )
+    write_token(tmp_config.token_path, scopes=["https://www.googleapis.com/auth/gmail.modify"])
     with caplog.at_level("WARNING", logger="jobtrack.ingest.auth"):
         load_credentials(tmp_config)
     assert "gmail.modify" in caplog.text
@@ -233,7 +233,8 @@ def test_declined_consent_becomes_auth_error(
     tmp_config.credentials_path.write_text(json.dumps({"installed": {}}), encoding="utf-8")
 
     class Flow(FakeFlow):
-        outcome = RefreshError("access_denied")
+        # google-auth 2.x: RefreshError.__init__ is unannotated.
+        outcome = RefreshError("access_denied")  # type: ignore[no-untyped-call]
 
     monkeypatch.setattr(auth, "InstalledAppFlow", Flow)
     with pytest.raises(AuthError, match="consent was not granted"):
@@ -341,9 +342,7 @@ def test_status_reports_an_expired_token(tmp_config: Config) -> None:
 
 def test_status_reports_a_wider_scope_as_not_ok(tmp_config: Config) -> None:
     """Regression guard: passing GMAIL_SCOPES into google-auth would mask the real grant."""
-    write_token(
-        tmp_config.token_path, scopes=["https://www.googleapis.com/auth/gmail.modify"]
-    )
+    write_token(tmp_config.token_path, scopes=["https://www.googleapis.com/auth/gmail.modify"])
     status = credential_status(tmp_config)
     assert status["scopes"] == ["https://www.googleapis.com/auth/gmail.modify"]
     assert status["scopes_ok"] is False
@@ -367,7 +366,8 @@ def _granted_credentials() -> Any:
     """A Credentials object standing in for a completed consent flow."""
     from google.oauth2.credentials import Credentials
 
-    return Credentials(
+    # google-auth 2.x: Credentials.__init__ is unannotated.
+    return Credentials(  # type: ignore[no-untyped-call]
         token="granted-access-token",
         refresh_token="granted-refresh-token",
         token_uri="https://oauth2.googleapis.com/token",

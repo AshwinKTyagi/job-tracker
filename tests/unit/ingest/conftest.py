@@ -14,10 +14,9 @@ from __future__ import annotations
 
 import base64
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
-import httplib2
 from googleapiclient.errors import HttpError
 
 READ_ONLY_ENDPOINTS: frozenset[str] = frozenset(
@@ -36,6 +35,19 @@ def encode_body(text: str, charset: str = "utf-8") -> str:
     return base64.urlsafe_b64encode(text.encode(charset)).decode("ascii")
 
 
+class _FakeResponse:
+    """The minimal ``httplib2.Response`` surface that HttpError actually reads.
+
+    Standing this up locally rather than importing httplib2 keeps the test suite free of
+    a stub-less transitive dependency — types-httplib2 is not in PLAN.md's dependency
+    list and M1 is not entitled to add one.
+    """
+
+    def __init__(self, status: int) -> None:
+        self.status = status
+        self.reason = "synthetic failure"
+
+
 def make_http_error(status: int, reason: str | None = None) -> HttpError:
     """Build a googleapiclient HttpError with the given status and Google error reason.
 
@@ -46,7 +58,7 @@ def make_http_error(status: int, reason: str | None = None) -> HttpError:
     Returns:
         An HttpError shaped like the real thing, for driving the error-mapping paths.
     """
-    response = httplib2.Response({"status": status})
+    response = _FakeResponse(status)
     payload: dict[str, Any] = {"error": {"code": status, "message": "synthetic failure"}}
     if reason is not None:
         payload["error"]["errors"] = [{"reason": reason, "message": "synthetic failure"}]

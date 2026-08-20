@@ -306,7 +306,7 @@ def test_transient_failure_is_retried_with_exponential_backoff(no_sleep: list[fl
 
 def test_backoff_gives_up_after_max_retries(no_sleep: list[float]) -> None:
     service = FakeGmailService(list_responses=[make_http_error(500, "backendError")])
-    with pytest.raises(TransientIngestError, match="attempts|retryable"):
+    with pytest.raises(TransientIngestError, match=r"attempts|retryable"):
         make_source(service).fetch(query=QUERY)
     assert len(service.calls_to("users.messages.list")) == MAX_RETRIES
 
@@ -484,15 +484,16 @@ def test_malformed_list_entries_are_ignored(no_sleep: list[float]) -> None:
 # =====================================================================================
 
 
-def history_page(*message_ids: str, labels: list[str] | None = None, **extra: Any) -> dict[str, Any]:
+def history_page(
+    *message_ids: str, labels: list[str] | None = None, **extra: Any
+) -> dict[str, Any]:
     """Build a ``history.list`` response adding `message_ids`."""
     page: dict[str, Any] = {
         "history": [
             {
                 "id": "1",
                 "messagesAdded": [
-                    {"message": {"id": mid, "labelIds": labels or ["INBOX"]}}
-                    for mid in message_ids
+                    {"message": {"id": mid, "labelIds": labels or ["INBOX"]}} for mid in message_ids
                 ],
             }
         ]

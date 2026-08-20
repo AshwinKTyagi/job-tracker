@@ -61,8 +61,8 @@ def test_entities_are_unescaped_exactly_once() -> None:
 
 def test_non_breaking_and_zero_width_characters_are_normalized() -> None:
     """Invisible characters render as nothing but defeat a substring match."""
-    text = html_to_text("<p>Thank you​ for­ applying</p>")
-    assert text == "Thank you for applying"
+    raw = "<p>Thank\u00a0you\u200b for\u00ad applying</p>"  # nbsp, ZWSP, soft hyphen
+    assert html_to_text(raw) == "Thank you for applying"
 
 
 def test_plain_text_input_passes_through() -> None:
@@ -109,7 +109,7 @@ def test_collapse_whitespace_cases(raw: str, expected: str) -> None:
 
 
 def test_collapse_whitespace_is_idempotent() -> None:
-    raw = "  Dear Alex,\r\n\r\n\r\n   Thanks   for applying.  \r\n"
+    raw = "  Dear Alex,\r\n\r\n\r\n   Thanks   for applying.  \r\n"
     once = collapse_whitespace(raw)
     assert collapse_whitespace(once) == once
 
