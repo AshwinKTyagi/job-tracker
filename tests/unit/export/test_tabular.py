@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import openpyxl
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
@@ -17,12 +18,13 @@ from pandas.testing import assert_frame_equal
 from jobtrack.constants import EVENT_COLUMNS, EXPORT_COLUMNS
 from jobtrack.errors import ExportError, JobTrackError
 from jobtrack.export.tabular import (
-    APPLICATIONS_SHEET,
     APPLICATION_DATETIME_COLUMNS,
     APPLICATION_DTYPES,
-    EVENTS_SHEET,
+    APPLICATIONS_SHEET,
     EVENT_DATETIME_COLUMNS,
     EVENT_DTYPES,
+    EVENTS_SHEET,
+    ISO_8601_UTC,
     build_dataframe,
     build_events_dataframe,
     write_csv,
@@ -217,9 +219,10 @@ def test_row_order_is_preserved(frozen_now: datetime) -> None:
 def test_build_dataframe_is_deterministic(frozen_now: datetime) -> None:
     rows = sample_applications(frozen_now)
     assert_frame_equal(build_dataframe(rows), build_dataframe(rows))
-    assert_frame_equal(build_events_dataframe(sample_events(frozen_now)), build_events_dataframe(
-        sample_events(frozen_now)
-    ))
+    assert_frame_equal(
+        build_events_dataframe(sample_events(frozen_now)),
+        build_events_dataframe(sample_events(frozen_now)),
+    )
 
 
 # --- CSV -------------------------------------------------------------------------------
@@ -289,15 +292,20 @@ def test_write_csv_to_a_directory_raises_export_error(tmp_path: Path) -> None:
 
 
 def read_back(path: Path, sheet: str) -> pd.DataFrame:
-    """Read a written sheet back into the same shape ``build_dataframe`` produces."""
-    raw = pd.read_excel(path, sheet_name=sheet, dtype="str")
+    """Read a written sheet back into the shape ``build_dataframe`` produces.
+
+    Datetimes are written as ISO-8601 UTC text (I7) and are parsed back here. Booleans and
+    numbers are written as native cell types, so only their dtypes need restoring — reading
+    them as text would turn the string "False" into a truthy value.
+    """
+    raw = pd.read_excel(path, sheet_name=sheet)
     datetime_columns = (
         APPLICATION_DATETIME_COLUMNS if sheet == APPLICATIONS_SHEET else EVENT_DATETIME_COLUMNS
     )
     dtypes = APPLICATION_DTYPES if sheet == APPLICATIONS_SHEET else EVENT_DTYPES
     out = raw.astype(dict(dtypes))
     for column in datetime_columns:
-        out[column] = pd.to_datetime(raw[column], utc=True, format="%Y-%m-%dT%H:%M:%SZ").astype(
+        out[column] = pd.to_datetime(raw[column], utc=True, format=ISO_8601_UTC).astype(
             "datetime64[ns, UTC]"
         )
     return out[list(raw.columns)]
@@ -327,14 +335,14 @@ def test_write_xlsx_without_events_has_one_sheet(tmp_path: Path, frozen_now: dat
 def test_write_xlsx_formats_the_sheet(tmp_path: Path, frozen_now: datetime) -> None:
     apps = build_dataframe(sample_applications(frozen_now))
     out = write_xlsx(apps, tmp_path / "apps.xlsx", events=build_events_dataframe([]))
-    with pd.ExcelFile(out, engine="openpyxl") as handle:
-        book: Any = handle.book
-        sheet = book[APPLICATIONS_SHEET]
-        assert sheet.freeze_panes == "A2"
-        assert sheet.auto_filter.ref == sheet.dimensions
-        assert sheet.column_dimensions["A"].width >= len("application_id")
-        assert sheet.column_dimensions["M"].width > 0
-        assert book[EVENTS_SHEET].freeze_panes == "A2"
+    book = openpyxl.load_workbook(out)
+    sheet = book[APPLICATIONS_SHEET]
+    assert sheet.freeze_panes == "A2"
+    assert sheet.auto_filter.ref == sheet.dimensions
+    assert sheet.column_dimensions["A"].width >= len("application_id")
+    assert sheet.column_dimensions["M"].width > 0
+    assert book[EVENTS_SHEET].freeze_panes == "A2"
+    book.close()
 
 
 def test_write_xlsx_empty_frame_writes_headers_only(tmp_path: Path) -> None:
@@ -348,10 +356,9 @@ def test_write_xlsx_handles_more_than_26_columns(tmp_path: Path) -> None:
     """Column sizing must survive the AA.. range, so the letter helper is exercised."""
     wide = pd.DataFrame([{f"col{i:02d}": i for i in range(30)}])
     out = write_xlsx(wide, tmp_path / "wide.xlsx")
-    with pd.ExcelFile(out, engine="openpyxl") as handle:
-        book: Any = handle.book
-        sheet = book[APPLICATIONS_SHEET]
-        assert sheet.column_dimensions["AD"].width > 0
+    book = openpyxl.load_workbook(out)
+    assert book[APPLICATIONS_SHEET].column_dimensions["AD"].width > 0
+    book.close()
 
 
 def test_write_xlsx_creates_parent_directories(tmp_path: Path) -> None:

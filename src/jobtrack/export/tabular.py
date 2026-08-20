@@ -25,9 +25,11 @@ logger = logging.getLogger(__name__)
 ISO_8601_UTC: Final[str] = "%Y-%m-%dT%H:%M:%SZ"
 """On-disk datetime format (I7). Every frame datetime is UTC, so the 'Z' suffix is exact."""
 
-UTC_DATETIME_DTYPE: Final[str] = "datetime64[ns, UTC]"
-STRING_DTYPE: Final[str] = "str"
-NULLABLE_INT_DTYPE: Final[str] = "Int64"
+# Left unannotated on purpose: `Final` infers a Literal type, which is what pandas-stubs'
+# astype() overloads accept. `Final[str]` would widen these to plain `str` and fail typing.
+UTC_DATETIME_DTYPE: Final = "datetime64[ns, UTC]"
+STRING_DTYPE: Final = "str"
+NULLABLE_INT_DTYPE: Final = "Int64"
 
 APPLICATIONS_SHEET: Final[str] = "Applications"
 EVENTS_SHEET: Final[str] = "Events"
