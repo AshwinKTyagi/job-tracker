@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-workday_rejection_unsuccessful",
+  "thread_id": "fixture-thread-workday_rejection_unsuccessful",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@myworkday.com",
+  "from_name": "Orchard Health",
+  "to_email": "candidate@example.com",
+  "subject": "Your application was unsuccessful",
+  "body_text": "Thank you for your interest in Orchard Health.\n\nPosition: Clinical Data Analyst\n\nUnfortunately, you have not been selected to continue to the next stage of our process. We will keep your resume on file for future openings.\n\nBest,\nOrchard Health Talent Team",
+  "snippet": "Thank you for your interest in Orchard Health.  Position: Clinical Data Analyst  Unfortunately, you have not b",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Orchard Health <no-reply@myworkday.com>",
+    "message-id": "<workday_rejection_unsuccessful@fixture.example>"
+  }
+}

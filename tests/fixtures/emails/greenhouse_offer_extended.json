@@ -1,0 +1,20 @@
+{
+  "message_id": "fixture-greenhouse_offer_extended",
+  "thread_id": "fixture-thread-greenhouse_offer_extended",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@us.greenhouse-mail.io",
+  "from_name": "Ridgeline Robotics",
+  "to_email": "candidate@example.com",
+  "subject": "Offer of employment at Ridgeline Robotics",
+  "body_text": "Following your final interview, the team would like to extend you an offer for the Robotics Software Engineer role.\n\nWe will send the paperwork shortly.",
+  "snippet": "Following your final interview, the team would like to extend you an offer for the Robotics Software Engineer ",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Ridgeline Robotics <no-reply@us.greenhouse-mail.io>",
+    "reply-to": "no-reply@greenhouse.io",
+    "message-id": "<greenhouse_offer_extended@fixture.example>"
+  }
+}

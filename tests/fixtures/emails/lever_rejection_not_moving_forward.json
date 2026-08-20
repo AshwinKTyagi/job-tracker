@@ -1,0 +1,20 @@
+{
+  "message_id": "fixture-lever_rejection_not_moving_forward",
+  "thread_id": "fixture-thread-lever_rejection_not_moving_forward",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@hire.lever.co",
+  "from_name": "Nimbus Systems",
+  "to_email": "candidate@example.com",
+  "subject": "We are not moving forward with your application",
+  "body_text": "Hi Alex,\n\nThank you for applying to Nimbus Systems and for the time you spent on your application for the Data Engineer role.\n\nAfter careful review, we will not be moving forward with your candidacy at this time.\n\nWe wish you all the best in your search.\n\nBest,\nThe Nimbus Systems Recruiting Team",
+  "snippet": "Hi Alex,  Thank you for applying to Nimbus Systems and for the time you spent on your application for the Data",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Nimbus Systems <no-reply@hire.lever.co>",
+    "reply-to": "no-reply@lever.co",
+    "message-id": "<lever_rejection_not_moving_forward@fixture.example>"
+  }
+}

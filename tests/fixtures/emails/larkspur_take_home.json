@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-larkspur_take_home",
+  "thread_id": "fixture-thread-larkspur_take_home",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "careers@larkspur.studio",
+  "from_name": "Larkspur Studio",
+  "to_email": "candidate@example.com",
+  "subject": "Take-home exercise — Product Designer",
+  "body_text": "Please complete the exercise and send it back within a week.\n\nThe design team at Larkspur Studio, and the hiring manager, will look at your submission together.",
+  "snippet": "Please complete the exercise and send it back within a week.  The design team at Larkspur Studio, and the hiri",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Larkspur Studio <careers@larkspur.studio>",
+    "message-id": "<larkspur_take_home@fixture.example>"
+  }
+}

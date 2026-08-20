@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-harborlight_phone_screen",
+  "thread_id": "fixture-thread-harborlight_phone_screen",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "recruiting@harborlight.io",
+  "from_name": "Harborlight Talent",
+  "to_email": "candidate@example.com",
+  "subject": "Scheduling your phone screen",
+  "body_text": "Hi Alex,\n\nI would love to get a phone screen on the calendar. Could you share your availability for next week? Once we have that, we will pick a time and send an invite.\n\nBest,\nHarborlight Talent",
+  "snippet": "Hi Alex,  I would love to get a phone screen on the calendar. Could you share your availability for next week?",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Harborlight Talent <recruiting@harborlight.io>",
+    "message-id": "<harborlight_phone_screen@fixture.example>"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-ashby_interview_invitation",
+  "thread_id": "fixture-thread-ashby_interview_invitation",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@ashbyhq.com",
+  "from_name": "Nimbus Systems",
+  "to_email": "candidate@example.com",
+  "subject": "Interview invitation — Senior Data Engineer",
+  "body_text": "Great news — we would like to invite you to an interview with the team.\n\nPlease use the link below to schedule a time that works for you.",
+  "snippet": "Great news — we would like to invite you to an interview with the team.  Please use the link below to schedule",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Nimbus Systems <no-reply@ashbyhq.com>",
+    "message-id": "<ashby_interview_invitation@fixture.example>"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-beacon_onsite_final_round",
+  "thread_id": "fixture-thread-beacon_onsite_final_round",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "careers@beaconlabs.dev",
+  "from_name": "Beacon Labs",
+  "to_email": "candidate@example.com",
+  "subject": "Final round onsite interview with Beacon Labs",
+  "body_text": "Your interview is scheduled for Tuesday at 10:00 UTC.\n\nYou will speak with the hiring manager and two engineers.",
+  "snippet": "Your interview is scheduled for Tuesday at 10:00 UTC.  You will speak with the hiring manager and two engineer",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Beacon Labs <careers@beaconlabs.dev>",
+    "message-id": "<beacon_onsite_final_round@fixture.example>"
+  }
+}

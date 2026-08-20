@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-linkedin_recruiter_outreach",
+  "thread_id": "fixture-thread-linkedin_recruiter_outreach",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "messages-noreply@linkedin.com",
+  "from_name": "LinkedIn",
+  "to_email": "candidate@example.com",
+  "subject": "Exciting opportunity at Vantage Grid",
+  "body_text": "Hi Alex,\n\nI came across your profile and thought of you. I am a technical recruiter at Vantage Grid, and we are hiring for a Platform Engineer.\n\nWould you be interested in a quick chat?",
+  "snippet": "Hi Alex,  I came across your profile and thought of you. I am a technical recruiter at Vantage Grid, and we ar",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "LinkedIn <messages-noreply@linkedin.com>",
+    "message-id": "<linkedin_recruiter_outreach@fixture.example>"
+  }
+}

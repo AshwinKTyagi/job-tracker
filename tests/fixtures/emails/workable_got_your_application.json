@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-workable_got_your_application",
+  "thread_id": "fixture-thread-workable_got_your_application",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@workablemail.com",
+  "from_name": "no-reply",
+  "to_email": "candidate@example.com",
+  "subject": "We've got your application",
+  "body_text": "Thanks for applying to Tidewater Marine!\n\nOur team is reviewing your application now.",
+  "snippet": "Thanks for applying to Tidewater Marine!  Our team is reviewing your application now.",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "no-reply <no-reply@workablemail.com>",
+    "message-id": "<workable_got_your_application@fixture.example>"
+  }
+}

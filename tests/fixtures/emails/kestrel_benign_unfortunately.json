@@ -1,0 +1,20 @@
+{
+  "message_id": "fixture-kestrel_benign_unfortunately",
+  "thread_id": "fixture-thread-kestrel_benign_unfortunately",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@us.greenhouse-mail.io",
+  "from_name": "Kestrel Analytics",
+  "to_email": "candidate@example.com",
+  "subject": "Thanks for applying to Kestrel Analytics",
+  "body_text": "Thanks for applying to Kestrel Analytics.\n\nWe have received your application for the Data Analyst role.\n\nUnfortunately we cannot respond to every applicant individually, but our team is reviewing your application now.",
+  "snippet": "Thanks for applying to Kestrel Analytics.  We have received your application for the Data Analyst role.  Unfor",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Kestrel Analytics <no-reply@us.greenhouse-mail.io>",
+    "reply-to": "no-reply@greenhouse.io",
+    "message-id": "<kestrel_benign_unfortunately@fixture.example>"
+  }
+}

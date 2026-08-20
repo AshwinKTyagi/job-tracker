@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-jazzhr_application_to",
+  "thread_id": "fixture-thread-jazzhr_application_to",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@applytojob.com",
+  "from_name": "no-reply",
+  "to_email": "candidate@example.com",
+  "subject": "Your application to Ironwood Systems",
+  "body_text": "We have received your application and it is in the queue.",
+  "snippet": "We have received your application and it is in the queue.",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "no-reply <no-reply@applytojob.com>",
+    "message-id": "<jazzhr_application_to@fixture.example>"
+  }
+}
