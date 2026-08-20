@@ -61,7 +61,9 @@ ignore = ["A003"]
 "tests/*" = ["S101"]
 
 [tool.mypy]
-python_version = "3.11"
+# Deliberately unpinned: mypy targets whichever interpreter runs it. A pinned
+# python_version rejects PEP 695 `type X = ...` syntax in newer numpy stubs when
+# CI runs the 3.12 matrix job, which fails the build on a file we do not own.
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
