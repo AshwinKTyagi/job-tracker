@@ -76,12 +76,12 @@ _HORIZONTAL_WS: Final[re.Pattern[str]] = re.compile(r"[^\S\n]+")
 _BLANK_RUN: Final[re.Pattern[str]] = re.compile(r"\n{3,}")
 
 _INVISIBLE: Final[tuple[tuple[str, str], ...]] = (
-    (" ", " "),  # non-breaking space — pervasive in HTML mail
-    ("​", ""),  # zero-width space
-    ("‌", ""),  # zero-width non-joiner
-    ("‍", ""),  # zero-width joiner
-    ("﻿", ""),  # BOM / zero-width no-break space
-    ("­", ""),  # soft hyphen
+    ("\u00a0", " "),  # non-breaking space — pervasive in HTML mail
+    ("\u200b", ""),  # zero-width space
+    ("\u200c", ""),  # zero-width non-joiner
+    ("\u200d", ""),  # zero-width joiner
+    ("\ufeff", ""),  # BOM / zero-width no-break space
+    ("\u00ad", ""),  # soft hyphen
 )
 """Characters that render as nothing but defeat a substring match. Ordered, so the
 substitution sequence is reproducible."""

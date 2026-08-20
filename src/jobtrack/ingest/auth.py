@@ -16,7 +16,7 @@ import logging
 import os
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from google.auth.exceptions import GoogleAuthError
 from google.auth.transport.requests import Request
@@ -38,6 +38,41 @@ OAUTH_LOCAL_PORT: Final[int] = 0
 """0 = let the OS pick a free loopback port for the desktop consent redirect."""
 
 
+# google-auth ships py.typed but leaves several Credentials methods unannotated, so
+# --strict rejects calling them from typed code. Every untyped call is confined to one of
+# the three shims below, each presenting a fully typed surface to the rest of this module,
+# rather than scattering ignores across the call sites.
+
+
+def _credentials_to_json(credentials: Credentials) -> str:
+    """JSON serialization of `credentials`. Typed shim over an unannotated method."""
+    # google-auth 2.x: to_json() has no annotations but returns a JSON string.
+    return str(credentials.to_json())  # type: ignore[no-untyped-call]
+
+
+def _credentials_from_file(path: Path) -> Credentials:
+    """Parse an authorized-user JSON file. Typed shim over an unannotated classmethod.
+
+    The `scopes` argument is deliberately left as None. Passing a scope list does not
+    *validate* the file against it — google-auth simply overwrites ``credentials.scopes``
+    with whatever was passed, so supplying GMAIL_SCOPES here would make a token granted
+    ``gmail.modify`` report itself as read-only. Reading with None surfaces the scopes the
+    user actually consented to, which is the only version worth reporting (I11).
+    """
+    # google-auth 2.x: from_authorized_user_file() has no annotations but returns Credentials.
+    loaded = Credentials.from_authorized_user_file(str(path), None)  # type: ignore[no-untyped-call]
+    return cast(Credentials, loaded)
+
+
+def _refresh_in_place(credentials: Credentials) -> None:
+    """Exchange the refresh token for a fresh access token, mutating `credentials`.
+
+    Typed shim over an unannotated method. Performs network I/O.
+    """
+    # google-auth 2.x: refresh() has no annotations and returns None.
+    credentials.refresh(Request())  # type: ignore[no-untyped-call]
+
+
 def _write_token(path: Path, credentials: Credentials) -> None:
     """Persist credentials to `path` with mode 0600, creating the parent directory."""
     try:
@@ -46,7 +81,7 @@ def _write_token(path: Path, credentials: Credentials) -> None:
         # leaves a window in which the token is world-readable.
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, TOKEN_FILE_MODE)
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(credentials.to_json())
+            handle.write(_credentials_to_json(credentials))
         os.chmod(path, TOKEN_FILE_MODE)  # in case the file already existed
     except OSError as exc:
         raise AuthError(f"could not write {path}: {exc}") from exc
@@ -55,7 +90,7 @@ def _write_token(path: Path, credentials: Credentials) -> None:
 def _read_token(path: Path) -> Credentials:
     """Parse token.json into Credentials, or raise AuthError if it is unusable."""
     try:
-        credentials = Credentials.from_authorized_user_file(str(path), GMAIL_SCOPES)
+        credentials = _credentials_from_file(path)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         raise AuthError(
             f"{path} is not a usable OAuth token ({exc}). Run `jobtrack auth login`."
@@ -88,6 +123,17 @@ def load_credentials(config: Config) -> Credentials:
 
     credentials = _read_token(path)
 
+    granted = _granted_scopes(credentials)
+    if granted and granted != sorted(GMAIL_SCOPES):
+        # Not fatal — the API call itself is the real authority — but a token carrying
+        # anything other than gmail.readonly means a wider grant is sitting on disk (I11).
+        logger.warning(
+            "the token at %s was granted %s, not %s; re-run `jobtrack auth login`",
+            path,
+            ", ".join(granted),
+            ", ".join(GMAIL_SCOPES),
+        )
+
     if not credentials.valid:
         if not credentials.refresh_token:
             raise AuthError(
@@ -96,7 +142,7 @@ def load_credentials(config: Config) -> Credentials:
             )
         logger.info("access token expired; refreshing silently")
         try:
-            credentials.refresh(Request())
+            _refresh_in_place(credentials)
         except GoogleAuthError as exc:
             raise AuthError(
                 f"could not refresh the token at {path} ({exc}). It was probably revoked; "
@@ -144,9 +190,10 @@ def run_oauth_flow(config: Config) -> Credentials:
     if credentials is None:
         raise AuthError("the consent flow returned no credentials")
 
-    _write_token(config.token_path, credentials)
+    granted = cast(Credentials, credentials)
+    _write_token(config.token_path, granted)
     logger.info("stored OAuth token at %s", config.token_path)
-    return credentials
+    return granted
 
 
 def credential_status(config: Config) -> dict[str, Any]:

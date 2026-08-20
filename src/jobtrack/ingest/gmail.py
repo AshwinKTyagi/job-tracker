@@ -33,9 +33,9 @@ from email.utils import parseaddr
 from html import unescape
 from typing import Any, Final, cast
 
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from google.oauth2.credentials import Credentials
 
 from jobtrack.errors import AuthError, IngestError, PermanentIngestError, TransientIngestError
 from jobtrack.ingest.html import collapse_whitespace, html_to_text
@@ -211,7 +211,9 @@ def _execute(
         except OSError as exc:
             # Socket timeouts, connection resets, DNS blips: transport-level and retryable.
             if attempt == MAX_RETRIES:
-                raise TransientIngestError(f"{context} failed after {attempt} attempts: {exc}")
+                raise TransientIngestError(
+                    f"{context} failed after {attempt} attempts: {exc}"
+                ) from exc
             logger.warning(
                 "%s: %s — retry %d/%d in %.1fs", context, exc, attempt, MAX_RETRIES, delay
             )
@@ -395,9 +397,11 @@ def parse_gmail_message(payload: dict[str, Any]) -> RawMessage:
     _, to_address = _parse_address(headers.get("to", ""))
 
     raw_labels = payload.get("labelIds")
-    labels = [label for label in raw_labels if isinstance(label, str)] if (
-        isinstance(raw_labels, list)
-    ) else []
+    labels = (
+        [label for label in raw_labels if isinstance(label, str)]
+        if (isinstance(raw_labels, list))
+        else []
+    )
 
     raw_snippet = payload.get("snippet")
     snippet = collapse_whitespace(unescape(raw_snippet)) if isinstance(raw_snippet, str) else ""
@@ -645,9 +649,7 @@ class GmailSource:
 
     def _get_payload(self, message_id: str) -> dict[str, Any]:
         """Fetch one full message payload."""
-        request = (
-            self._service.users().messages().get(userId=USER_ID, id=message_id, format="full")
-        )
+        request = self._service.users().messages().get(userId=USER_ID, id=message_id, format="full")
         return _execute(request, f"users.messages.get({message_id})")
 
 
@@ -660,9 +662,9 @@ def _as_dict_list(value: Any) -> list[dict[str, Any]]:
 
 __all__ = [
     "EXCLUDED_LABELS",
-    "GmailSource",
     "MAX_RETRIES",
     "PAGE_SIZE",
     "USER_ID",
+    "GmailSource",
     "parse_gmail_message",
 ]
