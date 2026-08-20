@@ -1,0 +1,18 @@
+{
+  "message_id": "fixture-lever-interview-001",
+  "thread_id": "fixture-lever-thread-001",
+  "received_at": "2026-07-15T18:22:47+00:00",
+  "from_email": "recruiting@hire.lever.co",
+  "from_name": "Nimbus Data",
+  "to_email": "candidate@example.com",
+  "subject": "Let's schedule your interview with Nimbus Data",
+  "body_text": "Hi Alex,\n\nThank you for applying to Nimbus Data. We would like to invite you to interview for the Data Platform Engineer role. We would like to schedule a video interview at your earliest convenience.\n\nLocation: Remote (US)\n\nBest,\nThe Nimbus Data Recruiting Team",
+  "snippet": "Thank you for applying to Nimbus Data. We would like to invite you to interview",
+  "labels": ["INBOX", "CATEGORY_UPDATES"],
+  "headers": {
+    "from": "Nimbus Data <recruiting@hire.lever.co>",
+    "reply-to": "recruiting@hire.lever.co",
+    "list-unsubscribe": "<https://jobs.lever.co/unsubscribe/def456>",
+    "message-id": "<lever-interview-001@hire.lever.co>"
+  }
+}

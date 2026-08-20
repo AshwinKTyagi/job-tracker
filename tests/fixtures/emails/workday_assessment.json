@@ -1,0 +1,18 @@
+{
+  "message_id": "fixture-workday-assessment-001",
+  "thread_id": "fixture-workday-thread-001",
+  "received_at": "2026-07-18T13:05:00+00:00",
+  "from_email": "notifications@myworkday.com",
+  "from_name": "Solstice Health",
+  "to_email": "candidate@example.com",
+  "subject": "Complete Your Online Assessment for Solstice Health",
+  "body_text": "Hi Alex,\n\nThank you for your interest in the Backend Engineer role at Solstice Health. As the next step, please complete the online assessment within 5 days. The coding challenge should take approximately 90 minutes.\n\nBest,\nThe Solstice Health Talent Acquisition Team",
+  "snippet": "Thank you for your interest in the Backend Engineer role. Please complete the online assessment",
+  "labels": ["INBOX", "CATEGORY_UPDATES"],
+  "headers": {
+    "from": "Solstice Health <notifications@myworkday.com>",
+    "reply-to": "no-reply@myworkday.com",
+    "list-unsubscribe": "<https://www.myworkday.com/unsubscribe/ghi789>",
+    "message-id": "<workday-assessment-001@myworkday.com>"
+  }
+}

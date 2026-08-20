@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from google.auth.exceptions import GoogleAuthError
 from google.auth.transport.requests import Request
@@ -29,6 +29,19 @@ GMAIL_SCOPES: list[str] = list(_GMAIL_SCOPES)
 _TOKEN_FILE_MODE: Final[int] = 0o600
 
 
+def _load_credentials_file(path: str) -> Credentials:
+    """`Credentials.from_authorized_user_file`, typed: google-auth ships no annotations."""
+    return cast(
+        Credentials,
+        Credentials.from_authorized_user_file(path, GMAIL_SCOPES),  # type: ignore[no-untyped-call]
+    )
+
+
+def _credentials_to_json(credentials: Credentials) -> str:
+    """`Credentials.to_json`, typed: google-auth ships no annotations on this method."""
+    return cast(str, credentials.to_json())  # type: ignore[no-untyped-call]
+
+
 def _persist_token(config: Config, credentials: Credentials) -> None:
     """Write `credentials` to `config.token_path` as JSON, mode 0600.
 
@@ -37,7 +50,7 @@ def _persist_token(config: Config, credentials: Credentials) -> None:
     """
     ensure_home(config)
     try:
-        config.token_path.write_text(credentials.to_json())
+        config.token_path.write_text(_credentials_to_json(credentials))
         os.chmod(config.token_path, _TOKEN_FILE_MODE)
     except OSError as exc:
         raise AuthError(f"could not write {config.token_path}: {exc}") from exc
@@ -59,13 +72,9 @@ def load_credentials(config: Config) -> Credentials:
         AuthError: no token.json, or refresh failed (revoked/expired).
     """
     if not config.token_path.is_file():
-        raise AuthError(
-            f"no token at {config.token_path}; run `jobtrack auth login` first"
-        )
+        raise AuthError(f"no token at {config.token_path}; run `jobtrack auth login` first")
     try:
-        credentials = Credentials.from_authorized_user_file(
-            str(config.token_path), GMAIL_SCOPES
-        )
+        credentials = _load_credentials_file(str(config.token_path))
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise AuthError(f"could not read {config.token_path}: {exc}") from exc
 
@@ -74,7 +83,7 @@ def load_credentials(config: Config) -> Credentials:
 
     if credentials.expired and credentials.refresh_token:
         try:
-            credentials.refresh(Request())
+            credentials.refresh(Request())  # type: ignore[no-untyped-call]
         except GoogleAuthError as exc:
             raise AuthError(f"gmail token refresh failed: {exc}") from exc
         _persist_token(config, credentials)
@@ -107,7 +116,8 @@ def run_oauth_flow(config: Config) -> Credentials:
         flow = InstalledAppFlow.from_client_secrets_file(
             str(config.credentials_path), scopes=GMAIL_SCOPES
         )
-        credentials = flow.run_local_server(port=0)
+        # google_auth_oauthlib is untyped (see mypy overrides), so this returns Any.
+        credentials: Credentials = flow.run_local_server(port=0)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise AuthError(f"could not read {config.credentials_path}: {exc}") from exc
     except GoogleAuthError as exc:
@@ -143,9 +153,7 @@ def credential_status(config: Config) -> dict[str, Any]:
         return status
 
     try:
-        credentials = Credentials.from_authorized_user_file(
-            str(config.token_path), GMAIL_SCOPES
-        )
+        credentials = _load_credentials_file(str(config.token_path))
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         status["error"] = str(exc)
         return status

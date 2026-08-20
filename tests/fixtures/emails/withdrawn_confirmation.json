@@ -1,0 +1,17 @@
+{
+  "message_id": "fixture-withdrawn-001",
+  "thread_id": "fixture-withdrawn-thread-001",
+  "received_at": "2026-07-20T10:15:00+00:00",
+  "from_email": "careers@brightpathanalytics.example",
+  "from_name": "BrightPath Analytics",
+  "to_email": "candidate@example.com",
+  "subject": "Your application withdrawal has been confirmed",
+  "body_text": "Hi Alex,\n\nThis confirms that per your request, we have withdrawn your application for the Product Marketing Manager role at BrightPath Analytics.\n\nIf this was a mistake, please contact us within 48 hours.\n\nBest,\nThe BrightPath Analytics Team",
+  "snippet": "This confirms that per your request, we have withdrawn your application",
+  "labels": ["INBOX", "CATEGORY_UPDATES"],
+  "headers": {
+    "from": "BrightPath Analytics <careers@brightpathanalytics.example>",
+    "reply-to": "careers@brightpathanalytics.example",
+    "message-id": "<withdrawn-001@brightpathanalytics.example>"
+  }
+}

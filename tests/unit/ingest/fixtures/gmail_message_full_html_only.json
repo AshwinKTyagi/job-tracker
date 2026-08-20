@@ -1,0 +1,31 @@
+{
+  "id": "msg-full-html-001",
+  "threadId": "thread-full-html-001",
+  "internalDate": "1751645051000",
+  "labelIds": [
+    "INBOX",
+    "IMPORTANT"
+  ],
+  "snippet": "Congratulations! We would like to extend an offer.",
+  "payload": {
+    "mimeType": "text/html",
+    "headers": [
+      {
+        "name": "From",
+        "value": "Talent Team <talent@lever.co>"
+      },
+      {
+        "name": "To",
+        "value": "Candidate@Example.com"
+      },
+      {
+        "name": "Subject",
+        "value": "Your offer from Acme Robotics"
+      }
+    ],
+    "body": {
+      "size": 110,
+      "data": "PGRpdj5Db25ncmF0dWxhdGlvbnMhIFdlIHdvdWxkIGxpa2UgdG8gZXh0ZW5kIGFuIG9mZmVyLjwvZGl2PjxkaXY-PGJyPjwvZGl2PjxkaXY-UmVnYXJkcyw8YnI-VGFsZW50IFRlYW08L2Rpdj4"
+    }
+  }
+}

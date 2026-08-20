@@ -1,0 +1,11 @@
+{
+  "id": "msg-missing-thread-001",
+  "internalDate": "1751645051000",
+  "payload": {
+    "mimeType": "text/plain",
+    "headers": [],
+    "body": {
+      "data": ""
+    }
+  }
+}

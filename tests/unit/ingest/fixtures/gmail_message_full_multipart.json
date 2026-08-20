@@ -1,0 +1,54 @@
+{
+  "id": "msg-full-multipart-001",
+  "threadId": "thread-full-multipart-001",
+  "internalDate": "1751558651000",
+  "labelIds": [
+    "INBOX"
+  ],
+  "snippet": "Unfortunately we have decided to move forward with other candidates.",
+  "payload": {
+    "mimeType": "multipart/alternative",
+    "headers": [
+      {
+        "name": "From",
+        "value": "=?UTF-8?B?QWNtZSBSb2JvdGljcw==?= <no-reply@us.greenhouse-mail.io>"
+      },
+      {
+        "name": "To",
+        "value": "candidate@example.com"
+      },
+      {
+        "name": "Subject",
+        "value": "Update on your Acme Robotics application"
+      }
+    ],
+    "parts": [
+      {
+        "mimeType": "text/plain",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "text/plain; charset=UTF-8"
+          }
+        ],
+        "body": {
+          "size": 99,
+          "data": "SGkgQWxleCwKClVuZm9ydHVuYXRlbHkgd2UgaGF2ZSBkZWNpZGVkIHRvIG1vdmUgZm9yd2FyZCB3aXRoIG90aGVyIGNhbmRpZGF0ZXMuCgpCZXN0LApUaGUgQWNtZSBUZWFt"
+        }
+      },
+      {
+        "mimeType": "text/html",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "text/html; charset=UTF-8"
+          }
+        ],
+        "body": {
+          "size": 145,
+          "data": "PGh0bWw-PGJvZHk-PHA-SGkgQWxleCw8L3A-PHA-VW5mb3J0dW5hdGVseSB3ZSBoYXZlIGRlY2lkZWQgdG8gbW92ZSBmb3J3YXJkIHdpdGggb3RoZXIgY2FuZGlkYXRlcy48L3A-PHA-QmVzdCw8YnI-VGhlIEFjbWUgVGVhbTwvcD48L2JvZHk-PC9odG1sPg"
+        }
+      }
+    ]
+  }
+}

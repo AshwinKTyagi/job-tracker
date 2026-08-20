@@ -1,0 +1,35 @@
+{
+  "id": "msg-full-plain-001",
+  "threadId": "thread-full-plain-001",
+  "internalDate": "1751472251000",
+  "labelIds": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "snippet": "Thanks for applying to Acme Robotics! We received your application.",
+  "payload": {
+    "mimeType": "text/plain",
+    "headers": [
+      {
+        "name": "From",
+        "value": "Acme Robotics <no-reply@us.greenhouse-mail.io>"
+      },
+      {
+        "name": "To",
+        "value": "Candidate <candidate@example.com>"
+      },
+      {
+        "name": "Subject",
+        "value": "Thanks for applying to Acme Robotics"
+      },
+      {
+        "name": "Reply-To",
+        "value": "no-reply@greenhouse.io"
+      }
+    ],
+    "body": {
+      "size": 98,
+      "data": "SGkgQWxleCwKClRoYW5rcyBmb3IgYXBwbHlpbmcgdG8gQWNtZSBSb2JvdGljcyEgV2UgcmVjZWl2ZWQgeW91ciBhcHBsaWNhdGlvbi4KCkJlc3QsClRoZSBBY21lIFRlYW0"
+    }
+  }
+}

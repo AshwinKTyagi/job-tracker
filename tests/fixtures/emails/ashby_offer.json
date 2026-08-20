@@ -1,0 +1,18 @@
+{
+  "message_id": "fixture-ashby-offer-001",
+  "thread_id": "fixture-ashby-thread-001",
+  "received_at": "2026-08-01T16:40:12+00:00",
+  "from_email": "careers@ashbyhq.com",
+  "from_name": "Lumen Robotics",
+  "to_email": "candidate@example.com",
+  "subject": "Your offer from Lumen Robotics!",
+  "body_text": "Hi Alex,\n\nWe are thrilled to extend an offer for the position of Senior Data Scientist at Lumen Robotics.\n\nLocation: Boston, MA\n\nPlease find your offer letter attached, along with details about compensation and start date.\n\nCongratulations,\nThe Lumen Robotics Team",
+  "snippet": "We are thrilled to extend an offer for the position of Senior Data Scientist",
+  "labels": ["INBOX", "CATEGORY_UPDATES"],
+  "headers": {
+    "from": "Lumen Robotics <careers@ashbyhq.com>",
+    "reply-to": "careers@ashbyhq.com",
+    "list-unsubscribe": "<https://app.ashbyhq.com/unsubscribe/jkl012>",
+    "message-id": "<ashby-offer-001@ashbyhq.com>"
+  }
+}

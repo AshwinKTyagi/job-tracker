@@ -1,0 +1,16 @@
+{
+  "message_id": "fixture-recruiter-001",
+  "thread_id": "fixture-recruiter-thread-001",
+  "received_at": "2026-07-05T08:45:00+00:00",
+  "from_email": "jordan.lee@talentscout.example",
+  "from_name": "Jordan Lee",
+  "to_email": "candidate@example.com",
+  "subject": "Exciting opportunity at Vertex Cloud",
+  "body_text": "Hi Alex,\n\nI came across your profile and think you'd be a great fit for the Staff Backend Engineer role at Vertex Cloud. I'm a technical recruiter working directly with the hiring manager.\n\nAre you open to a quick chat this week?\n\nBest,\nJordan",
+  "snippet": "I came across your profile and think you'd be a great fit for the Staff Backend Engineer role",
+  "labels": ["INBOX"],
+  "headers": {
+    "from": "Jordan Lee <jordan.lee@talentscout.example>",
+    "message-id": "<recruiter-001@talentscout.example>"
+  }
+}
