@@ -56,6 +56,7 @@ def classify(
     company: str | None = "Acme Robotics, Inc.",
     company_key: str | None = "acme robotics",
     role: str | None = "Software Engineer",
+    ats: str | None = "greenhouse",
     confidence: float = 0.9,
     needs_review: bool = False,
 ) -> Classification:
@@ -67,7 +68,7 @@ def classify(
         company_key=company_key,
         role=role,
         location="Remote",
-        ats="greenhouse",
+        ats=ats,
         confidence=confidence,
         needs_review=needs_review,
         evidence=["ack.subject.thanks_for_applying"],
@@ -110,19 +111,19 @@ def test_schema_version_is_zero_before_migrating(tmp_path: Path) -> None:
         assert opened.schema_version() == 0
 
 
-def test_migrate_creates_every_table(store: Store) -> None:
+def test_migrate_creates_every_table(store: Store, tmp_path: Path) -> None:
     """Running the migrations against an empty file yields the whole schema."""
-    connection = sqlite3.connect(store_path(store))
+    connection = sqlite3.connect(tmp_path / "jobtrack.db")
     connection.row_factory = sqlite3.Row
     names = {name for kind, name, _ in user_objects(connection) if kind == "table"}
     connection.close()
-    assert EXPECTED_TABLES <= names
+    assert names >= EXPECTED_TABLES
     assert store.schema_version() == SCHEMA_VERSION
 
 
-def test_applications_table_has_no_status_column(store: Store) -> None:
+def test_applications_table_has_no_status_column(store: Store, tmp_path: Path) -> None:
     """Status is derived on every read and must never be persisted (I4)."""
-    connection = sqlite3.connect(store_path(store))
+    connection = sqlite3.connect(tmp_path / "jobtrack.db")
     columns = {row[1] for row in connection.execute("PRAGMA table_info(applications)")}
     connection.close()
     assert "status" not in columns
@@ -178,7 +179,7 @@ def test_migration_files_rejects_a_bad_filename(
     directory.mkdir()
     (directory / "initial.sql").write_text("SELECT 1;", encoding="utf-8")
     monkeypatch.setattr(db_module, "MIGRATIONS_DIR", directory)
-    with pytest.raises(MigrationError, match="not NNNN_name.sql"):
+    with pytest.raises(MigrationError, match="not NNNN_name"):
         migration_files()
 
 
@@ -220,7 +221,7 @@ def test_failed_migration_leaves_the_prior_version(
     monkeypatch.setattr(db_module, "MIGRATIONS_DIR", directory)
 
     with Store.open(tmp_path / "jobtrack.db") as opened:
-        with pytest.raises(MigrationError, match="0002_broken.sql"):
+        with pytest.raises(MigrationError, match=r"0002_broken\.sql"):
             opened.migrate()
         assert opened.schema_version() == 1
         connection = sqlite3.connect(tmp_path / "jobtrack.db")
@@ -231,9 +232,9 @@ def test_failed_migration_leaves_the_prior_version(
 
 def test_open_from_config_carries_ghost_after_days(tmp_config: Config) -> None:
     """The configured patience reaches the store that derives GHOSTED (I4)."""
-    config = tmp_config.model_copy(update={"store": tmp_config.store.model_copy(
-        update={"ghost_after_days": 7}
-    )})
+    config = tmp_config.model_copy(
+        update={"store": tmp_config.store.model_copy(update={"ghost_after_days": 7})}
+    )
     with Store.open_from_config(config) as opened:
         opened.migrate()
         assert opened.ghost_after_days == 7
@@ -271,11 +272,10 @@ def test_record_message_is_idempotent(store: Store, make_message: MessageFactory
     assert store.has_message("m1")
 
 
-def test_record_message_rejects_naive_datetimes(
-    store: Store, make_message: MessageFactory
-) -> None:
+def test_record_message_rejects_naive_datetimes(store: Store, make_message: MessageFactory) -> None:
     """A naive received_at must not reach the disk (I7)."""
-    naive = make_message(received_at=datetime(2026, 8, 18, 12, 0, 0))  # noqa: DTZ001
+    # Deliberately naive: the point is that it is refused before it can reach disk.
+    naive = make_message(received_at=datetime(2026, 8, 18, 12, 0, 0))
     with pytest.raises(StoreError, match="naive datetime"):
         store.record_message(naive)
 
@@ -339,9 +339,7 @@ def test_messages_without_a_company_key_are_recorded_unlinked(
     assert event.application_id is None
 
 
-def test_same_thread_links_to_one_application(
-    store: Store, make_message: MessageFactory
-) -> None:
+def test_same_thread_links_to_one_application(store: Store, make_message: MessageFactory) -> None:
     """Rule 1: a reply on the same thread joins the same application."""
     first = make_message(message_id="m1", thread_id="t1")
     second = make_message(message_id="m2", thread_id="t1")
@@ -389,9 +387,7 @@ def test_a_different_company_creates_a_second_application(
     assert len(store.list_applications(now=NOW)) == 2
 
 
-def test_application_ids_are_deterministic(
-    tmp_path: Path, make_message: MessageFactory
-) -> None:
+def test_application_ids_are_deterministic(tmp_path: Path, make_message: MessageFactory) -> None:
     """The same inputs produce the same application id in a fresh database."""
     message = make_message(message_id="m1", thread_id="t1")
     classification = classify(message)
@@ -412,9 +408,7 @@ def test_enrichment_fills_missing_application_fields(
     first = make_message(message_id="m1", thread_id="t1")
     second = make_message(message_id="m2", thread_id="t1")
     store.link_and_record_event(first, classify(first, role=None, ats=None), now=NOW)
-    store.link_and_record_event(
-        second, classify(second, event_type=EventType.INTERVIEW), now=NOW
-    )
+    store.link_and_record_event(second, classify(second, event_type=EventType.INTERVIEW), now=NOW)
     application = store.list_applications(now=NOW)[0]
     assert application.role == "Software Engineer"
     assert application.ats == "greenhouse"
@@ -435,16 +429,12 @@ def test_applied_at_moves_back_to_the_earliest_message(
 # --- candidates -------------------------------------------------------------
 
 
-def test_match_candidates_reports_thread_ids(
-    store: Store, make_message: MessageFactory
-) -> None:
+def test_match_candidates_reports_thread_ids(store: Store, make_message: MessageFactory) -> None:
     """Candidates carry every thread their application has been seen on."""
     first = make_message(message_id="m1", thread_id="t1")
     second = make_message(message_id="m2", thread_id="t2")
     store.link_and_record_event(first, classify(first), now=NOW)
-    store.link_and_record_event(
-        second, classify(second, event_type=EventType.INTERVIEW), now=NOW
-    )
+    store.link_and_record_event(second, classify(second, event_type=EventType.INTERVIEW), now=NOW)
     candidates = store.match_candidates("acme robotics", "t9", within_days=LINK_WINDOW_DAYS)
     assert len(candidates) == 1
     assert candidates[0].thread_ids == ["t1", "t2"]
@@ -494,9 +484,7 @@ def test_get_application_returns_none_for_an_unknown_id(store: Store) -> None:
     assert store.get_application("app_nope", now=NOW) is None
 
 
-def test_get_application_matches_the_listing(
-    store: Store, make_message: MessageFactory
-) -> None:
+def test_get_application_matches_the_listing(store: Store, make_message: MessageFactory) -> None:
     """The single-row read and the listing agree."""
     message = make_message(message_id="m1", thread_id="t1")
     store.link_and_record_event(message, classify(message), now=NOW)
@@ -504,9 +492,7 @@ def test_get_application_matches_the_listing(
     assert store.get_application(listed.application_id, now=NOW) == listed
 
 
-def test_list_applications_filters_by_status(
-    store: Store, make_message: MessageFactory
-) -> None:
+def test_list_applications_filters_by_status(store: Store, make_message: MessageFactory) -> None:
     """Status is derived, then filtered (I4)."""
     live = make_message(message_id="m1", thread_id="t1")
     dead = make_message(message_id="m2", thread_id="t2")
@@ -541,16 +527,12 @@ def test_list_applications_filters_by_needs_review(
     assert store.list_applications(now=NOW, needs_review=False) == []
 
 
-def test_list_events_includes_unlinked_messages(
-    store: Store, make_message: MessageFactory
-) -> None:
+def test_list_events_includes_unlinked_messages(store: Store, make_message: MessageFactory) -> None:
     """list_events(None) returns everything, including UNKNOWNs (I5)."""
     linked = make_message(message_id="m1", thread_id="t1")
     unlinked = make_message(message_id="m2", thread_id="t2")
     store.link_and_record_event(linked, classify(linked), now=NOW)
-    store.link_and_record_event(
-        unlinked, classify(unlinked, event_type=EventType.UNKNOWN), now=NOW
-    )
+    store.link_and_record_event(unlinked, classify(unlinked, event_type=EventType.UNKNOWN), now=NOW)
     application_id = store.list_applications(now=NOW)[0].application_id
     assert len(store.list_events()) == 2
     assert [e.message_id for e in store.list_events(application_id)] == ["m1"]
@@ -607,11 +589,129 @@ def test_cursors_are_per_source(store: Store) -> None:
 def test_set_cursor_rejects_naive_datetimes(store: Store) -> None:
     """The sync timestamp is a datetime like any other (I7)."""
     with pytest.raises(StoreError, match="naive datetime"):
-        store.set_cursor("gmail", "c", synced_at=datetime(2026, 8, 18))  # noqa: DTZ001
+        # Deliberately naive; set_cursor must refuse it rather than assume a zone.
+        store.set_cursor("gmail", "c", synced_at=datetime(2026, 8, 18))
 
 
-def store_path(store: Store) -> Path:
-    """Recover the file a store was opened on, for schema introspection in tests."""
-    connection = store._conn  # noqa: SLF001 - tests may inspect the file under test
-    row = connection.execute("PRAGMA database_list").fetchall()[0]
-    return Path(row[2])
+# --- failure paths ----------------------------------------------------------
+
+
+def test_open_reports_an_unusable_parent_directory(tmp_path: Path) -> None:
+    """A file where a directory should be is a StoreError, not an OSError."""
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("in the way", encoding="utf-8")
+    with pytest.raises(StoreError, match="could not create"):
+        Store.open(blocker / "jobtrack.db")
+
+
+def test_unreadable_migration_is_a_migration_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A migration that cannot be read stops the run cleanly."""
+    directory = tmp_path / "migrations"
+    directory.mkdir()
+    shutil.copy(db_module.MIGRATIONS_DIR / "0001_initial.sql", directory / "0001_initial.sql")
+    (directory / "0002_directory.sql").mkdir()
+    monkeypatch.setattr(db_module, "MIGRATIONS_DIR", directory)
+    with (
+        pytest.raises(MigrationError, match="could not read migration"),
+        Store.open(tmp_path / "jobtrack.db") as opened,
+    ):
+        opened.migrate()
+
+
+def test_schema_version_on_a_closed_connection_raises(tmp_path: Path) -> None:
+    """Reading the version is a query like any other and wraps its errors."""
+    opened = Store.open(tmp_path / "jobtrack.db")
+    opened.migrate()
+    opened.close()
+    with pytest.raises(StoreError, match="could not read schema version"):
+        opened.schema_version()
+
+
+def test_schema_version_is_zero_when_no_migration_is_recorded(tmp_path: Path) -> None:
+    """A schema built by hand, with no version row, counts as unmigrated."""
+    path = tmp_path / "jobtrack.db"
+    connection = sqlite3.connect(path)
+    connection.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
+    connection.commit()
+    connection.close()
+    with Store.open(path) as opened:
+        assert opened.schema_version() == 0
+
+
+def test_link_and_record_event_rolls_back_a_failed_write(
+    store: Store, tmp_path: Path, make_message: MessageFactory
+) -> None:
+    """A mid-transaction constraint failure leaves no message and no event behind.
+
+    The saboteur plants an event whose message row is missing, so the dedupe probe (which
+    joins through messages) misses it and the insert collides on events.message_id.
+    """
+    saboteur = sqlite3.connect(tmp_path / "jobtrack.db")
+    saboteur.execute(
+        "INSERT INTO events (application_id, message_id, event_type, occurred_at, created_at) "
+        "VALUES (NULL, ?, ?, ?, ?)",
+        ("m1", "unknown", repo.to_iso(NOW), repo.to_iso(NOW)),
+    )
+    saboteur.commit()
+    saboteur.close()
+
+    message = make_message(message_id="m1", thread_id="t1")
+    with pytest.raises(StoreError, match="could not record event"):
+        store.link_and_record_event(message, classify(message), now=NOW)
+    assert not store.has_message("m1")
+    assert store.list_events() == []
+    assert store.list_applications(now=NOW) == []
+
+
+def test_link_and_record_event_rolls_back_a_naive_clock(
+    store: Store, make_message: MessageFactory
+) -> None:
+    """A naive `now` is refused and the partial transaction is undone (I7)."""
+    message = make_message(message_id="m1", thread_id="t1")
+    with pytest.raises(StoreError, match="naive datetime"):
+        # Deliberately naive.
+        store.link_and_record_event(message, classify(message), now=datetime(2026, 8, 18))
+    assert not store.has_message("m1")
+    assert store.list_events() == []
+
+
+def test_a_connection_without_a_row_factory_is_refused(tmp_path: Path) -> None:
+    """Rows are read by name, so a tuple-returning connection cannot be used."""
+    path = tmp_path / "jobtrack.db"
+    with Store.open(path) as opened:
+        opened.migrate()
+        opened.set_cursor("gmail", "history-1", synced_at=NOW)
+    plain = sqlite3.connect(path)
+    tuple_store = Store(plain)
+    with pytest.raises(StoreError, match="row_factory"):
+        tuple_store.get_cursor("gmail")
+    plain.close()
+
+
+# --- degenerate data --------------------------------------------------------
+
+
+def test_eventless_applications_are_invisible(store: Store, tmp_path: Path) -> None:
+    """An application with no events cannot be described, so it is skipped, not crashed on."""
+    connection = sqlite3.connect(tmp_path / "jobtrack.db")
+    connection.execute(
+        "INSERT INTO applications "
+        "(application_id, company, company_key, applied_at, created_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("app_empty", "Acme", "acme", repo.to_iso(NOW), repo.to_iso(NOW)),
+    )
+    connection.commit()
+    connection.close()
+    assert store.list_applications(now=NOW) == []
+    assert store.get_application("app_empty", now=NOW) is None
+
+
+def test_an_empty_company_filter_matches_everything(
+    store: Store, make_message: MessageFactory
+) -> None:
+    """A filter of punctuation alone selects nothing in particular."""
+    message = make_message(message_id="m1", thread_id="t1")
+    store.link_and_record_event(message, classify(message), now=NOW)
+    assert len(store.list_applications(now=NOW, company="!!!")) == 1

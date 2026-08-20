@@ -90,7 +90,8 @@ def test_to_iso_converts_other_zones_to_utc() -> None:
 def test_to_iso_rejects_naive_datetimes() -> None:
     """A naive datetime crossing the boundary is a bug, not a coercion (I7)."""
     with pytest.raises(StoreError, match="naive datetime"):
-        repo.to_iso(datetime(2026, 8, 18, 12, 0, 0))  # noqa: DTZ001 - deliberately naive
+        # Deliberately naive: to_iso must refuse it rather than guess a zone.
+        repo.to_iso(datetime(2026, 8, 18, 12, 0, 0))
 
 
 def test_from_iso_round_trips() -> None:
@@ -155,9 +156,7 @@ def test_wrongly_typed_json_columns_raise_store_error(store: Store, tmp_path: Pa
     with pytest.raises(StoreError, match="expected a JSON array"):
         repo.row_to_message(row)
 
-    connection.execute(
-        "UPDATE messages SET labels_json = ? WHERE message_id = ?", ("[]", "m2")
-    )
+    connection.execute("UPDATE messages SET labels_json = ? WHERE message_id = ?", ("[]", "m2"))
     connection.commit()
     row = connection.execute(repo.SELECT_MESSAGE, ("m2",)).fetchone()
     with pytest.raises(StoreError, match="expected a JSON object"):
@@ -299,3 +298,20 @@ def test_needs_review_ignores_overridden_events() -> None:
     assert not repo.build_application_row(
         make_core(), [corrected], now=NOW, ghost_after_days=30
     ).needs_review
+
+
+def test_corrupt_headers_json_raises_store_error(store: Store, tmp_path: Path) -> None:
+    """The object-valued JSON column is guarded the same way as the array one."""
+    connection = sqlite3.connect(tmp_path / "jobtrack.db")
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        "INSERT INTO messages "
+        "(message_id, thread_id, received_at, from_email, labels_json, headers_json) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        ("m4", "t1", repo.to_iso(NOW), "a@b.co", "[]", "{not-json"),
+    )
+    connection.commit()
+    row = connection.execute(repo.SELECT_MESSAGE, ("m4",)).fetchone()
+    with pytest.raises(StoreError, match="corrupt JSON in headers_json"):
+        repo.row_to_message(row)
+    connection.close()

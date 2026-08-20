@@ -201,7 +201,7 @@ class Store:
                 self._conn.execute(repo.INSERT_SCHEMA_VERSION, (version,))
                 self._conn.commit()
             except sqlite3.Error as exc:
-                self._conn.rollback()
+                self._rollback()
                 raise MigrationError(f"migration {path.name} failed: {exc}") from exc
             logger.info("applied migration %s", path.name)
 
@@ -325,10 +325,10 @@ class Store:
             )
             self._conn.commit()
         except sqlite3.Error as exc:
-            self._conn.rollback()
+            self._rollback()
             raise StoreError(f"could not record event for {message.message_id}: {exc}") from exc
         except StoreError:
-            self._conn.rollback()
+            self._rollback()
             raise
 
         recorded = self._event_record_for_message(message.message_id)
@@ -354,9 +354,7 @@ class Store:
         row = self._query_one(repo.SELECT_APPLICATION_CORE, (application_id,))
         if row is None:
             return None
-        records = self._event_records(
-            repo.WHERE_EVENTS_FOR_APPLICATION, (application_id,)
-        )
+        records = self._event_records(repo.WHERE_EVENTS_FOR_APPLICATION, (application_id,))
         if not records:
             return None
         return repo.build_application_row(
@@ -434,9 +432,7 @@ class Store:
             return [record.row for record in self._event_records("", ())]
         return [
             record.row
-            for record in self._event_records(
-                repo.WHERE_EVENTS_FOR_APPLICATION, (application_id,)
-            )
+            for record in self._event_records(repo.WHERE_EVENTS_FOR_APPLICATION, (application_id,))
         ]
 
     def match_candidates(
@@ -554,10 +550,10 @@ class Store:
             self._conn.execute(repo.DELETE_ORPHAN_APPLICATIONS)
             self._conn.commit()
         except sqlite3.Error as exc:
-            self._conn.rollback()
+            self._rollback()
             raise StoreError(f"could not record override for {override.message_id}: {exc}") from exc
         except StoreError:
-            self._conn.rollback()
+            self._rollback()
             raise
 
     def accept_classification(self, message_id: str, *, now: datetime) -> None:
@@ -583,10 +579,10 @@ class Store:
             )
             self._conn.commit()
         except sqlite3.Error as exc:
-            self._conn.rollback()
+            self._rollback()
             raise StoreError(f"could not accept classification {message_id}: {exc}") from exc
         except StoreError:
-            self._conn.rollback()
+            self._rollback()
             raise
 
     def clear_classifications(self, *, only_unreviewed: bool = True) -> int:
@@ -615,7 +611,7 @@ class Store:
             cleared = cursor.rowcount
             self._conn.commit()
         except sqlite3.Error as exc:
-            self._conn.rollback()
+            self._rollback()
             raise StoreError(f"could not clear classifications: {exc}") from exc
         logger.info("cleared %d classification(s)", cleared)
         return cleared
@@ -724,9 +720,7 @@ class Store:
         application_id = self._resolve_application(message, corrected, now=override.corrected_at)
         self._conn.execute(repo.RELINK_EVENT, (application_id, override.message_id))
 
-    def _event_records(
-        self, where: str, params: tuple[object, ...]
-    ) -> list[repo.EventRecord]:
+    def _event_records(self, where: str, params: tuple[object, ...]) -> list[repo.EventRecord]:
         """Run the event projection with a fixed WHERE fragment and map every row."""
         sql = f"{repo.SELECT_EVENT_RECORDS}{where}{repo.ORDER_EVENTS}"
         return [repo.row_to_event_record(row) for row in self._query_all(sql, params)]
@@ -744,11 +738,33 @@ class Store:
             raise StoreError(f"query failed: {exc}") from exc
 
     def _query_one(self, sql: str, params: tuple[object, ...]) -> sqlite3.Row | None:
-        """Run a SELECT and return the first row, wrapping driver errors."""
+        """Run a SELECT and return the first row, wrapping driver errors.
+
+        ``fetchone`` is typed as ``Any`` because a connection's ``row_factory`` is free to
+        return anything; the isinstance check turns that back into a real type and catches
+        a connection that was built without :class:`sqlite3.Row`.
+        """
         try:
-            return self._conn.execute(sql, params).fetchone()
+            row = self._conn.execute(sql, params).fetchone()
         except sqlite3.Error as exc:
             raise StoreError(f"query failed: {exc}") from exc
+        if row is None:
+            return None
+        if not isinstance(row, sqlite3.Row):
+            raise StoreError("connection has no sqlite3.Row row_factory")
+        return row
+
+    def _rollback(self) -> None:
+        """Roll back the open transaction, tolerating an already-dead connection.
+
+        A failed statement is usually followed by a rollback, but if the connection itself
+        is what failed, ``rollback`` fails too. Swallowing that here is what keeps a
+        ``sqlite3.Error`` from escaping the module on the way out of an error path.
+        """
+        try:
+            self._conn.rollback()
+        except sqlite3.Error as exc:
+            logger.debug("rollback failed on a dead connection: %s", exc)
 
     def _write(self, sql: str, params: tuple[object, ...]) -> None:
         """Run one statement in its own transaction, wrapping driver errors."""
@@ -756,7 +772,7 @@ class Store:
             self._conn.execute(sql, params)
             self._conn.commit()
         except sqlite3.Error as exc:
-            self._conn.rollback()
+            self._rollback()
             raise StoreError(f"write failed: {exc}") from exc
 
 

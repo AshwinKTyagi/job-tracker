@@ -16,7 +16,13 @@ from jobtrack.models import (
     EventRow,
     EventType,
 )
-from jobtrack.store.linker import LINK_WINDOW_DAYS, derive_status, match_application
+from jobtrack.store.linker import (
+    LINK_WINDOW_DAYS,
+    _normalize_role_local,
+    _role_similarity,
+    derive_status,
+    match_application,
+)
 
 NOW = datetime(2026, 8, 18, 12, 0, 0, tzinfo=UTC)
 
@@ -87,9 +93,7 @@ def test_thread_match_wins_over_everything_else() -> None:
         "app_thread", company_key="other", role=None, thread_ids=["t9"], days_ago=999
     )
     company = make_candidate("app_company")
-    matched = match_application(
-        make_classification(), [company, threaded], "t9", now=NOW
-    )
+    matched = match_application(make_classification(), [company, threaded], "t9", now=NOW)
     assert matched == "app_thread"
 
 
@@ -296,3 +300,33 @@ def test_every_event_type_maps_to_a_status(
     """Every EventType member resolves, so a new enum member cannot slip through."""
     events = [make_event(event_type, days_ago=1)]
     assert derive_status(events, now=NOW, ghost_after_days=30) is expected
+
+
+# --- the local role-similarity fallback -------------------------------------
+
+
+def test_role_similarity_treats_missing_titles_as_no_evidence() -> None:
+    """A missing title scores 0, so rule 2 never fires on it and rule 3 decides."""
+    assert _role_similarity(None, "Software Engineer") == 0.0
+    assert _role_similarity("Software Engineer", None) == 0.0
+    assert _role_similarity(None, None) == 0.0
+
+
+def test_role_similarity_is_symmetric_and_self_identical() -> None:
+    """Equal titles score 1.0, and argument order does not matter."""
+    assert _role_similarity("Software Engineer", "Software Engineer") == 1.0
+    forward = _role_similarity("Staff Data Engineer", "Data Engineer, Analytics")
+    backward = _role_similarity("Data Engineer, Analytics", "Staff Data Engineer")
+    assert forward == backward
+
+
+def test_titles_that_are_pure_seniority_noise_score_zero() -> None:
+    """'Senior II' carries no job information, so it must not match anything."""
+    assert _normalize_role_local("Senior II") == ""
+    assert _role_similarity("Senior II", "Software Engineer") == 0.0
+
+
+def test_a_noise_only_title_does_not_link() -> None:
+    """Rule 2 cannot fire on an empty normalization, and rule 3 does not apply."""
+    candidate = make_candidate("app_1", role="Senior II")
+    assert match_application(make_classification(), [candidate], "t-new", now=NOW) is None

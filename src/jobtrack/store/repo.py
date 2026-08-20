@@ -615,7 +615,9 @@ def _json_dict(raw: str, *, column: str) -> dict[str, Any]:
 
 def _latest_company_correction(records: Sequence[EventRecord]) -> str | None:
     """Most recently corrected company across an application's events, if any."""
-    corrected = [r for r in records if r.override_company is not None and r.corrected_at is not None]
+    corrected = [
+        r for r in records if r.override_company is not None and r.corrected_at is not None
+    ]
     if not corrected:
         return None
     return max(corrected, key=_correction_key).override_company
