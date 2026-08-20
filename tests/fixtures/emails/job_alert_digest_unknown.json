@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-job_alert_digest_unknown",
+  "thread_id": "fixture-thread-job_alert_digest_unknown",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "alerts@jobboard.example",
+  "from_name": "JobBoard Alerts",
+  "to_email": "candidate@example.com",
+  "subject": "5 new jobs matching your search",
+  "body_text": "New roles posted this week.\n\nApply now to be considered for these openings.\n\nManage your alerts anytime.",
+  "snippet": "New roles posted this week.  Apply now to be considered for these openings.  Manage your alerts anytime.",
+  "labels": [
+    "INBOX",
+    "CATEGORY_PROMOTIONS"
+  ],
+  "headers": {
+    "from": "JobBoard Alerts <alerts@jobboard.example>",
+    "message-id": "<job_alert_digest_unknown@fixture.example>"
+  }
+}

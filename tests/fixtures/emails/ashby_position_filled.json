@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-ashby_position_filled",
+  "thread_id": "fixture-thread-ashby_position_filled",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@ashbyhq.com",
+  "from_name": "Beacon Labs",
+  "to_email": "candidate@example.com",
+  "subject": "The Senior Backend Engineer role has been filled",
+  "body_text": "Thank you for your interest in this opening.\n\nThe position has been filled, and your application is no longer under consideration.\n\nBest,\nBeacon Labs",
+  "snippet": "Thank you for your interest in this opening.  The position has been filled, and your application is no longer ",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Beacon Labs <no-reply@ashbyhq.com>",
+    "message-id": "<ashby_position_filled@fixture.example>"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-fablecraft_not_a_match",
+  "thread_id": "fixture-thread-fablecraft_not_a_match",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "careers@fablecraft.com",
+  "from_name": "Fablecraft Careers",
+  "to_email": "candidate@example.com",
+  "subject": "Update on your application",
+  "body_text": "Hello,\n\nWe have completed our review. Your experience is impressive, but it is not the right match for what this team needs right now.\n\nBest,\nThe Fablecraft Recruiting Team",
+  "snippet": "Hello,  We have completed our review. Your experience is impressive, but it is not the right match for what th",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Fablecraft Careers <careers@fablecraft.com>",
+    "message-id": "<fablecraft_not_a_match@fixture.example>"
+  }
+}
