@@ -128,7 +128,31 @@ FREE_MAIL_DOMAINS: Final[frozenset[str]] = frozenset(
 """Consumer mail hosts. A company is never inferred from one of these domains."""
 
 DOMAIN_RE: Final[re.Pattern[str]] = re.compile(r"@([A-Za-z0-9.\-]+)")
-"""Pull the host out of an address or an angle-bracketed header value."""
+"""Pull the host out of an email address."""
+
+HOST_RE: Final[re.Pattern[str]] = re.compile(r"(?:@|//)([A-Za-z0-9.\-]+)")
+"""Pull every host out of a header value. Matches both the address form
+(``@greenhouse.io``) and the URL form (``//boards.greenhouse.io``), because
+``List-Unsubscribe`` carries URLs while ``Reply-To`` carries addresses."""
+
+DOMAIN_LABEL_STOPWORDS: Final[frozenset[str]] = frozenset(
+    {
+        "careers",
+        "email",
+        "hr",
+        "jobs",
+        "mail",
+        "mailer",
+        "no-reply",
+        "noreply",
+        "notifications",
+        "recruiting",
+        "smtp",
+        "talent",
+        "www",
+    }
+)
+"""Sub-domain labels that name a function, not the company: ``careers.acme.com`` → ``acme``."""
 
 # --------------------------------------------------------------------------------------
 # Stage 2 — event typing
@@ -165,9 +189,15 @@ def _pattern(
     pattern: str,
     *,
     high_precision: bool = False,
+    verbose: bool = False,
 ) -> EventPattern:
-    """Compile one table row. Called only at module import, so every regex is compiled once."""
-    return EventPattern(rule_id, event_type, scope, re.compile(pattern), high_precision)
+    """Compile one table row. Called only at module import, so every regex is compiled once.
+
+    ``verbose`` turns on ``re.VERBOSE`` for the multi-line patterns that carry inline
+    comments; those patterns must spell every literal space as ``\\s``.
+    """
+    flags = re.VERBOSE if verbose else 0
+    return EventPattern(rule_id, event_type, scope, re.compile(pattern, flags), high_precision)
 
 
 _WITHDRAWN: Final[tuple[EventPattern, ...]] = (
@@ -232,6 +262,7 @@ _REJECTION: Final[tuple[EventPattern, ...]] = (
            advanc(?:e|ing))\s+
         (?:forward|ahead|with\s+your|to\s+the\s+next)
         """,
+        verbose=True,
     ),
     _pattern(
         "rej.body.decided_not_to",
@@ -256,7 +287,12 @@ _REJECTION: Final[tuple[EventPattern, ...]] = (
         "rej.body.unfortunately",
         EventType.REJECTION,
         "body",
-        r"\bunfortunately\b",
+        r"""
+        \bunfortunately\b          # the softener, which alone means nothing …
+        [^.]{0,80}?
+        \b(?:not|other|another|no\s+longer|unsuccessful|unable\s+to)\b
+        """,
+        verbose=True,
     ),
     _pattern(
         "rej.body.not_selected",
@@ -393,6 +429,7 @@ _INTERVIEW: Final[tuple[EventPattern, ...]] = (
         [^.]{0,40}?
         \bto\s+(?:schedule|book)                 # … whose purpose is booking
         """,
+        verbose=True,
     ),
     _pattern(
         "itv.body.availability",
@@ -683,9 +720,104 @@ HIGH_PRECISION_COMPANY_RULES: Final[frozenset[str]] = frozenset(
 )
 """Company extractors precise enough to earn the ``company_extracted`` confidence weight."""
 
+COMPANY_TRAILER_RE: Final[re.Pattern[str]] = re.compile(
+    r"""
+    \s+(?:
+        for\s+(?:the|our|your|a|an)\b   # "Acme Robotics for the Senior Engineer role"
+      | regarding\b | about\b
+      | position\b | role\b | opening\b
+    ).*$
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+"""Trim the clause that follows a company name in a subject line. Deliberately requires a
+determiner after 'for' so a name like 'Bank for International Settlements' survives."""
+
+COMPANY_TRAILING_PUNCT: Final[str] = " \t.,;:!?-–—'\"()"
+"""Characters stripped from both ends of an extracted company or role."""
+
+GENERIC_COMPANY_WORDS: Final[frozenset[str]] = frozenset(
+    {
+        "a",
+        "an",
+        "application",
+        "job",
+        "our",
+        "position",
+        "role",
+        "the",
+        "this",
+        "us",
+        "you",
+        "your",
+    }
+)
+"""A capture group that reduces to one of these caught filler, not a company."""
+
+CORPORATE_NAME_WORDS: Final[frozenset[str]] = frozenset(
+    {
+        "ai",
+        "analytics",
+        "bank",
+        "capital",
+        "cloud",
+        "data",
+        "digital",
+        "dynamics",
+        "health",
+        "industries",
+        "labs",
+        "media",
+        "networks",
+        "robotics",
+        "security",
+        "software",
+        "solutions",
+        "studio",
+        "studios",
+        "systems",
+        "technologies",
+        "technology",
+        "ventures",
+        "works",
+    }
+)
+"""Words that mark a display name as a company rather than a person, so
+'Jane Chen' falls through to the sender domain but 'Acme Robotics' does not."""
+
+ROLE_STOPWORDS: Final[frozenset[str]] = frozenset(
+    {
+        "application",
+        "applying",
+        "interview",
+        "it",
+        "job",
+        "opening",
+        "opportunity",
+        "position",
+        "role",
+        "the",
+        "this",
+        "us",
+        "you",
+        "your",
+    }
+)
+"""A capture group that reduces to one of these is filler, not a job title."""
+
+ROLE_TRAILING_WORDS: Final[re.Pattern[str]] = re.compile(
+    r"\s+(?:role|position|opening|job|req(?:uisition)?(?:\s+\S+)?)\s*$", re.IGNORECASE
+)
+"""'Senior Software Engineer role' → 'Senior Software Engineer'. Applied until stable."""
+
 _ROLE_TAIL = r"(?:\s+(?:role|position|opening|job|req(?:uisition)?))?"
 """Job titles are routinely followed by the word 'role'/'position'; strip it in the pattern
 so the capture group stops there rather than swallowing it."""
+
+_ROLE_BODY_STOP = r"[^\n.;|]"
+"""A title inside a sentence runs to the end of the clause. Commas must stay INSIDE the
+class: real titles carry them ('Senior Software Engineer, Platform'), and excluding them
+truncated every such title to nothing."""
 
 ROLE_PATTERNS: Final[tuple[ExtractionPattern, ...]] = (
     _extractor(
@@ -717,15 +849,15 @@ ROLE_PATTERNS: Final[tuple[ExtractionPattern, ...]] = (
     _extractor(
         "role.body.application_for_role",
         "body",
-        r"\bapplication\s+for\s+(?:the\s+)?(?P<role>[^,\n]{2,80}?)\s+"
-        r"(?:role|position|opening|job)\b",
+        rf"\bapplication\s+for\s+(?:the\s+)?(?P<role>{_ROLE_BODY_STOP}{{2,80}}?)\s+"
+        rf"(?:role|position|opening|job)\b",
         "role",
     ),
     _extractor(
         "role.body.interest_in_role",
         "body",
-        r"\binterest\s+in\s+(?:the\s+)?(?P<role>[^,\n]{2,80}?)\s+"
-        r"(?:role|position|opening|job)\b",
+        rf"\binterest\s+in\s+(?:the\s+)?(?P<role>{_ROLE_BODY_STOP}{{2,80}}?)\s+"
+        rf"(?:role|position|opening|job)\b",
         "role",
     ),
     _extractor(
@@ -815,15 +947,25 @@ __all__ = [
     "ATS_DOMAIN_ORDER",
     "ATS_HEADER_SOURCES",
     "COMPANY_PATTERNS",
+    "COMPANY_TRAILER_RE",
+    "COMPANY_TRAILING_PUNCT",
+    "CORPORATE_NAME_WORDS",
+    "DOMAIN_LABEL_STOPWORDS",
     "DOMAIN_RE",
     "EVENT_PATTERNS",
     "EventPattern",
     "ExtractionPattern",
     "FREE_MAIL_DOMAINS",
+    "GENERIC_COMPANY_WORDS",
     "GENERIC_SENDER_NAMES",
     "HIGH_PRECISION_COMPANY_RULES",
+    "HOST_RE",
     "LOCATION_PATTERNS",
     "ROLE_PATTERNS",
+    "ROLE_STOPWORDS",
+    "ROLE_TRAILING_WORDS",
     "RULE_INDEX",
+    "SENDER_NAME_PERSON_AT_RE",
+    "SENDER_NAME_SUFFIX_RE",
     "normalize_text",
 ]
