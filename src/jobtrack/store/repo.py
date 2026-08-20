@@ -112,6 +112,23 @@ FROM messages
 WHERE message_id = ?
 """
 
+SELECT_ALL_MESSAGES: Final[str] = """
+SELECT
+    message_id   AS message_id,
+    thread_id    AS thread_id,
+    received_at  AS received_at,
+    from_email   AS from_email,
+    from_name    AS from_name,
+    to_email     AS to_email,
+    subject      AS subject,
+    body_text    AS body_text,
+    snippet      AS snippet,
+    labels_json  AS labels_json,
+    headers_json AS headers_json
+FROM messages
+ORDER BY received_at, message_id
+"""
+
 UPSERT_CLASSIFICATION: Final[str] = """
 INSERT INTO classifications (
     message_id, event_type, company, company_key, role, location, ats,
@@ -215,6 +232,10 @@ VALUES (?, ?, ?, ?, ?)
 
 RELINK_EVENT: Final[str] = """
 UPDATE events SET application_id = ? WHERE message_id = ?
+"""
+
+UPDATE_EVENT_TYPE: Final[str] = """
+UPDATE events SET event_type = ? WHERE message_id = ?
 """
 
 SELECT_EVENT_RECORDS: Final[str] = """

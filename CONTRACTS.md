@@ -650,6 +650,21 @@ class Store:
         Never deletes messages, applications, or overrides."""
         ...
 
+    # --- reclassify (added in Phase 2; see §9) ------------------------------
+    def list_messages(self) -> list[RawMessage]:
+        """Every stored message, oldest first. The read-back reclassify needs, since the
+        classifier is pure (I2) and must be re-run against the original RawMessage."""
+        ...
+
+    def reapply_classification(
+        self, message: RawMessage, classification: Classification, *, now: datetime
+    ) -> EventRow:
+        """Refresh a stored event after a rules change, then revisit its application link.
+        link_and_record_event is a no-op on replay (I1), so it cannot do this. Rewrites
+        only the classifier's own output; a human Override still wins on read (I6). A
+        message with no event yet is simply recorded."""
+        ...
+
     # --- sync state ---------------------------------------------------------
     def get_cursor(self, source: str) -> str | None: ...
     def set_cursor(self, source: str, cursor: str | None, *, synced_at: datetime) -> None:
@@ -818,6 +833,7 @@ EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_AUTH, EXIT_TRANSIENT = 0, 1, 2, 3, 4
 def run_sync(
     source: EmailSource, classifier: Classifier, store: Store, config: Config,
     *, now: datetime, dry_run: bool = False, limit: int | None = None,
+    since: datetime | None = None, full: bool = False,
 ) -> SyncReport:
     """Orchestrate one sync: fetch → dedupe → classify → link → record → advance cursor.
 
@@ -861,6 +877,32 @@ def main() -> int:
     """Entry point. The ONLY place that catches JobTrackError and maps it to an exit code."""
     ...
 ```
+
+### Three contract corrections Phase 2 made
+
+All three were found by building the CLI against Phase 1, and all three are already
+reflected above and in the code. They are strictly additive: nothing that compiled against
+the previous signatures stops compiling.
+
+1. **`run_sync` gained `since` and `full`.** The frozen signature had no channel for
+   `sync --since D` or `sync --full`, so those two documented flags (PLAN.md §6) had
+   nowhere to go. Both are keyword-only with defaults, so existing calls are unaffected.
+
+2. **`Store.list_messages()` is new.** `reclassify` has to re-run a *pure* classifier (I2),
+   which means it needs the original `RawMessage` back — and M3 exposed no way to read one.
+   Without it the command cannot be written at all.
+
+3. **`Store.reapply_classification()` is new.** `link_and_record_event` is deliberately a
+   no-op on replay (I1), so it cannot refresh a stored event; `clear_classifications` drops
+   classification rows but leaves `events.event_type` untouched. There was therefore no
+   path by which `reclassify` could actually change anything. The new method rewrites the
+   classifier's own output in place and revisits the application link, while leaving any
+   human `Override` to win at read time (I6) — which is what I6 presupposes when it says
+   "`reclassify` must never clobber one".
+
+**Note on I5.** I5 ("events are append-only") governs *human* corrections: fixing a mistake
+writes an `Override` and never mutates an event. Re-deriving machine output is the separate
+case I6 describes, and `reapply_classification` is confined to it.
 
 ## 10. Future — M7 Ollama classifier (Phase 3, not now)
 

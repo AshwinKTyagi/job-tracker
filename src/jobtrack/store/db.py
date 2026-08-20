@@ -336,7 +336,84 @@ class Store:
             raise StoreError(f"event for {message.message_id} vanished after commit")
         return recorded.row
 
+    def reapply_classification(
+        self, message: RawMessage, classification: Classification, *, now: datetime
+    ) -> EventRow:
+        """Re-record a message's classification after a rules change, preserving overrides.
+
+        ``link_and_record_event`` is deliberately a no-op on replay (I1), so it cannot be
+        used to refresh a stored event. This is the ``reclassify`` path: it rewrites the
+        machine-derived classification and event type in place and revisits the
+        application link. A human ``Override`` is never touched and still wins on read
+        (I6) — only the classifier's own output is replaced, which is exactly the
+        correction I5 reserves for overrides rather than events.
+
+        A message with no event yet is simply recorded, so this is safe to call over the
+        whole mailbox.
+
+        Args:
+            message: The stored message being re-classified.
+            classification: The classifier's fresh answer.
+            now: Injected tz-aware UTC clock.
+
+        Returns:
+            The refreshed event, with any override already applied.
+
+        Raises:
+            StoreError: the write failed; the transaction is rolled back.
+        """
+        if self._event_record_for_message(message.message_id) is None:
+            return self.link_and_record_event(message, classification, now=now)
+
+        try:
+            self._conn.execute(
+                repo.UPSERT_CLASSIFICATION, repo.classification_params(classification)
+            )
+            self._conn.execute(
+                repo.UPDATE_EVENT_TYPE, (str(classification.event_type), message.message_id)
+            )
+            refreshed = self._event_record_for_message(message.message_id)
+            if refreshed is None:  # pragma: no cover - the row existed a moment ago
+                raise StoreError(f"event for {message.message_id} vanished mid-reclassify")
+
+            update: dict[str, object] = {"event_type": refreshed.row.event_type}
+            if refreshed.override_company is not None:
+                update["company"] = refreshed.override_company
+            if refreshed.override_role is not None:
+                update["role"] = refreshed.override_role
+            effective = classification.model_copy(update=update)
+
+            application_id = self._resolve_application(message, effective, now=now)
+            self._conn.execute(repo.RELINK_EVENT, (application_id, message.message_id))
+            self._conn.execute(repo.DELETE_ORPHAN_APPLICATIONS)
+            self._conn.commit()
+        except sqlite3.Error as exc:
+            self._rollback()
+            raise StoreError(f"could not reclassify {message.message_id}: {exc}") from exc
+        except StoreError:
+            self._rollback()
+            raise
+
+        record = self._event_record_for_message(message.message_id)
+        if record is None:  # pragma: no cover - the update above guarantees a row
+            raise StoreError(f"event for {message.message_id} vanished after commit")
+        return record.row
+
     # --- read side ---------------------------------------------------------
+
+    def list_messages(self) -> list[RawMessage]:
+        """Every stored message, oldest first.
+
+        The read-back ``reclassify`` needs: the classifier is pure (I2), so re-running it
+        requires the original ``RawMessage``, not the derived rows.
+
+        Returns:
+            All stored messages, ordered by receipt time then message_id.
+
+        Raises:
+            StoreError: the read failed, or a stored row could not be rebuilt.
+        """
+        return [repo.row_to_message(row) for row in self._query_all(repo.SELECT_ALL_MESSAGES, ())]
 
     def get_application(self, application_id: str, *, now: datetime) -> ApplicationRow | None:
         """Read one application with its derived status.
