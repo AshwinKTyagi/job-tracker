@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-bamboohr_thanks_for_applying",
+  "thread_id": "fixture-thread-bamboohr_thanks_for_applying",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@bamboohr.com",
+  "from_name": "no-reply",
+  "to_email": "candidate@example.com",
+  "subject": "Thanks for applying to Halcyon Freight",
+  "body_text": "We appreciate your interest in joining us. Someone will be in touch if there is a match.",
+  "snippet": "We appreciate your interest in joining us. Someone will be in touch if there is a match.",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "no-reply <no-reply@bamboohr.com>",
+    "message-id": "<bamboohr_thanks_for_applying@fixture.example>"
+  }
+}

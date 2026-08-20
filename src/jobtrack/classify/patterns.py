@@ -38,14 +38,14 @@ _WHITESPACE_RE: Final[re.Pattern[str]] = re.compile(r"\s+")
 
 _PUNCTUATION_FOLD: Final[dict[int, str]] = str.maketrans(
     {
-        "‘": "'",  # left single quote
-        "’": "'",  # right single quote / apostrophe
-        "“": '"',  # left double quote
-        "”": '"',  # right double quote
-        "–": "-",  # en dash
-        "—": "-",  # em dash
-        " ": " ",  # non-breaking space
-        "​": "",  # zero-width space
+        "\u2018": "'",  # left single quote
+        "\u2019": "'",  # right single quote / apostrophe
+        "\u201c": '"',  # left double quote
+        "\u201d": '"',  # right double quote
+        "\u2013": "-",  # en dash
+        "\u2014": "-",  # em dash
+        "\u00a0": " ",  # non-breaking space
+        "\u200b": "",  # zero-width space
     }
 )
 """Fold the typographic characters mail clients insert, so one regex matches both forms."""
@@ -630,7 +630,7 @@ def _extractor(
     return ExtractionPattern(rule_id, scope, re.compile(pattern, flags), group)
 
 
-_COMPANY_STOP = r"[^,!?.|\n\-–—]"
+_COMPANY_STOP = r"[^,!?.|\n\-\u2013\u2014]"
 """A company name runs until punctuation that reliably ends it. Kept as one constant so
 every company extractor agrees on where a name stops."""
 
@@ -698,8 +698,10 @@ COMPANY_PATTERNS: Final[tuple[ExtractionPattern, ...]] = (
     _extractor(
         "co.body.here_at",
         "body",
+        # NB: "hiring for" is deliberately absent — it introduces a ROLE ("we are hiring
+        # for a Site Reliability Engineer"), not a company. Only "hiring at" names one.
         r"\b(?:here\s+at|team\s+at|role\s+at|position\s+at|opportunity\s+at|opening\s+at|"
-        r"recruiter\s+(?:at|with)|hiring\s+(?:at|for))\s+"
+        r"recruiter\s+(?:at|with)|hiring\s+at)\s+"
         r"(?P<company>[A-Z][A-Za-z0-9&.'\-\ ]{1,60}?)"
         r"(?=[,.!?]|\s+(?:and|where|who|that|we)\b|$)",
         "company",
@@ -733,7 +735,7 @@ COMPANY_TRAILER_RE: Final[re.Pattern[str]] = re.compile(
 """Trim the clause that follows a company name in a subject line. Deliberately requires a
 determiner after 'for' so a name like 'Bank for International Settlements' survives."""
 
-COMPANY_TRAILING_PUNCT: Final[str] = " \t.,;:!?-–—'\"()"
+COMPANY_TRAILING_PUNCT: Final[str] = " \t.,;:!?-\u2013\u2014'\"()"
 """Characters stripped from both ends of an extracted company or role."""
 
 GENERIC_COMPANY_WORDS: Final[frozenset[str]] = frozenset(
@@ -824,26 +826,34 @@ ROLE_PATTERNS: Final[tuple[ExtractionPattern, ...]] = (
         "role.subject.application_for",
         "subject",
         rf"\b(?:applic(?:ation|ant)|applying)\s+for\s+(?:the\s+)?"
-        rf"(?P<role>[^|\n–—]+?){_ROLE_TAIL}\s*$",
+        rf"(?P<role>[^|\n\u2013\u2014]+?){_ROLE_TAIL}\s*$",
         "role",
     ),
     _extractor(
         "role.subject.interview_for",
         "subject",
         rf"\b(?:interview|assessment|screen)\s+for\s+(?:the\s+)?"
-        rf"(?P<role>[^|\n–—]+?){_ROLE_TAIL}\s*$",
+        rf"(?P<role>[^|\n\u2013\u2014]+?){_ROLE_TAIL}\s*$",
         "role",
     ),
     _extractor(
         "role.subject.role_at_company",
         "subject",
-        r"^(?P<role>[A-Za-z][^|\n–—]{2,60}?)\s+(?:at|@)\s+\S",
+        r"""
+        ^(?!(?:                                  # the "<Title> at <Company>" job-board form.
+            your|our|my|the|a|an|re|fwd|update|thanks|thank|offer|interview|invitation|
+            congratulations|welcome|following|application|applying|exciting|new|great|
+            we|i|it|this|that|here|hi|hello|quick|final|next|position|role
+        )\b)
+        (?P<role>[A-Za-z][^|\n\u2013\u2014]{2,60}?)\s+(?:at|@)\s+\S
+        """,
         "role",
+        verbose=True,
     ),
     _extractor(
         "role.subject.delimited",
         "subject",
-        r"[|–—]\s*(?P<role>[A-Za-z][^|\n–—]{2,60}?)\s*$",
+        r"[|\u2013\u2014]\s*(?P<role>[A-Za-z][^|\n\u2013\u2014]{2,60}?)\s*$",
         "role",
     ),
     _extractor(
@@ -953,8 +963,6 @@ __all__ = [
     "DOMAIN_LABEL_STOPWORDS",
     "DOMAIN_RE",
     "EVENT_PATTERNS",
-    "EventPattern",
-    "ExtractionPattern",
     "FREE_MAIL_DOMAINS",
     "GENERIC_COMPANY_WORDS",
     "GENERIC_SENDER_NAMES",
@@ -967,5 +975,7 @@ __all__ = [
     "RULE_INDEX",
     "SENDER_NAME_PERSON_AT_RE",
     "SENDER_NAME_SUFFIX_RE",
+    "EventPattern",
+    "ExtractionPattern",
     "normalize_text",
 ]

@@ -110,7 +110,7 @@ _REQ_ID_RE: Final[re.Pattern[str]] = re.compile(
     r"""
     (?:
         \(\s*(?:req|job|requisition)?\s*[#\-]?\s*[a-z]*\d[\w\-]*\s*\)  # "(REQ-12345)"
-      | \[\s*[a-z]*\d[\w\-]*\s*\]                                     # "[R-1234]"
+      | \[\s*[\w\-]*\d[\w\-]*\s*\]                                    # "[R-1234]", "[1234]"
       | \#\s*\w*\d\w*                                                 # "#12345"
       | \b(?:req|requisition|job)\s*(?:id|number|no)?\s*[#:\-]?\s*\w*\d\w*
       | \b[a-z]{1,4}\d{4,}\b                                          # "JR0012345"
@@ -201,7 +201,7 @@ def normalize_role(title: str | None) -> str | None:
 
 
 def _jaccard(a: set[str], b: set[str]) -> float:
-    """Token-set overlap: |a ∩ b| / |a ∪ b|, 0.0 when both sides are empty."""
+    """Token-set overlap: intersection size over union size, 0.0 when both sides are empty."""
     union = a | b
     if not union:
         return 0.0

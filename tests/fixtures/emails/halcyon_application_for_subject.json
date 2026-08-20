@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-halcyon_application_for_subject",
+  "thread_id": "fixture-thread-halcyon_application_for_subject",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "careers@halcyonfreight.com",
+  "from_name": "Halcyon Freight Careers",
+  "to_email": "candidate@example.com",
+  "subject": "Application for Senior Platform Engineer",
+  "body_text": "Thank you for applying to Halcyon Freight.\n\nWe have received your application and our recruiters are reviewing it now.",
+  "snippet": "Thank you for applying to Halcyon Freight.  We have received your application and our recruiters are reviewing",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Halcyon Freight Careers <careers@halcyonfreight.com>",
+    "message-id": "<halcyon_application_for_subject@fixture.example>"
+  }
+}

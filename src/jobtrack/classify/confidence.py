@@ -10,6 +10,7 @@ The rubric is additive and clamped to [0.0, 1.0], per PLAN.md §7.
 
 from __future__ import annotations
 
+from itertools import pairwise
 from typing import Final
 
 from jobtrack.classify.patterns import HIGH_PRECISION_COMPANY_RULES, RULE_INDEX
@@ -82,8 +83,7 @@ def _has_adjacent_ambiguity(all_scores: dict[EventType, list[str]]) -> bool:
         if rules and event_type is not EventType.UNKNOWN
     )
     return any(
-        second - first == ADJACENT_PRECEDENCE_DISTANCE
-        for first, second in zip(positions, positions[1:], strict=False)
+        second - first == ADJACENT_PRECEDENCE_DISTANCE for first, second in pairwise(positions)
     )
 
 

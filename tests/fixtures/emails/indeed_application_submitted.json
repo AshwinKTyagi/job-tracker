@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-indeed_application_submitted",
+  "thread_id": "fixture-thread-indeed_application_submitted",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "noreply@indeedemail.com",
+  "from_name": "Indeed",
+  "to_email": "candidate@example.com",
+  "subject": "Application submitted — Warehouse Associate",
+  "body_text": "Your application was successfully submitted.\n\nYour application to Copperline Foods, submitted on July 2, is now with the hiring team.",
+  "snippet": "Your application was successfully submitted.  Your application to Copperline Foods, submitted on July 2, is no",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Indeed <noreply@indeedemail.com>",
+    "message-id": "<indeed_application_submitted@fixture.example>"
+  }
+}

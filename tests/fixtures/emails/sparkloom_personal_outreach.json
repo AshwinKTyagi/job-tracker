@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-sparkloom_personal_outreach",
+  "thread_id": "fixture-thread-sparkloom_personal_outreach",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "jordan@sparkloom.com",
+  "from_name": "Jordan Avery",
+  "to_email": "candidate@example.com",
+  "subject": "Reaching out about a role",
+  "body_text": "Hi Alex,\n\nI am a recruiter and we are hiring for a Site Reliability Engineer.\n\nAre you open to a short conversation this week?",
+  "snippet": "Hi Alex,  I am a recruiter and we are hiring for a Site Reliability Engineer.  Are you open to a short convers",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Jordan Avery <jordan@sparkloom.com>",
+    "message-id": "<sparkloom_personal_outreach@fixture.example>"
+  }
+}

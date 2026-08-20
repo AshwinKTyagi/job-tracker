@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-cobaltgrid_coding_assessment",
+  "thread_id": "fixture-thread-cobaltgrid_coding_assessment",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "assessments@cobaltgrid.io",
+  "from_name": "Cobalt Grid",
+  "to_email": "candidate@example.com",
+  "subject": "Coding assessment for the Backend Engineer role",
+  "body_text": "Please complete the coding challenge on HackerRank within the next five days.\n\nYou have 90 minutes to complete the exercise once you begin.",
+  "snippet": "Please complete the coding challenge on HackerRank within the next five days.  You have 90 minutes to complete",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Cobalt Grid <assessments@cobaltgrid.io>",
+    "message-id": "<cobaltgrid_coding_assessment@fixture.example>"
+  }
+}

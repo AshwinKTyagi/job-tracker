@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-northwind_offer",
+  "thread_id": "fixture-thread-northwind_offer",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "talent@northwind-analytics.com",
+  "from_name": "Priya Raman",
+  "to_email": "candidate@example.com",
+  "subject": "Your offer at Northwind Analytics",
+  "body_text": "We are pleased to offer you the position of Staff Data Scientist at Northwind Analytics.\n\nYour offer letter is attached. Your start date would be March 3.",
+  "snippet": "We are pleased to offer you the position of Staff Data Scientist at Northwind Analytics.  Your offer letter is",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Priya Raman <talent@northwind-analytics.com>",
+    "message-id": "<northwind_offer@fixture.example>"
+  }
+}

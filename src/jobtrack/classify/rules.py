@@ -136,7 +136,9 @@ def score_event_types(message: RawMessage) -> dict[EventType, list[str]]:
         if pattern.regex.search(haystack):
             matched.setdefault(pattern.event_type, []).append(pattern.rule_id)
 
-    return {event_type: matched[event_type] for event_type in EVENT_PRECEDENCE if event_type in matched}
+    return {
+        event_type: matched[event_type] for event_type in EVENT_PRECEDENCE if event_type in matched
+    }
 
 
 def resolve_event_type(scores: dict[EventType, list[str]]) -> tuple[EventType, list[str]]:
@@ -288,8 +290,9 @@ def extract_company(message: RawMessage, ats: str | None) -> tuple[str | None, l
     if label is not None:
         return label.replace("-", " ").title(), [SENDER_DOMAIN_COMPANY_RULE]
 
-    if display_name is not None:
-        return display_name, [SENDER_DISPLAY_COMPANY_RULE]
+    # Deliberately no final fallback to the display name: the only way to reach here with one
+    # is when it reads as a person, and a recruiter's own name is not their employer. Better
+    # to return None and let needs_review send it to a human than to invent a company.
     return None, []
 
 

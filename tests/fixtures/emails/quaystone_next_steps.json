@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-quaystone_next_steps",
+  "thread_id": "fixture-thread-quaystone_next_steps",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "talent@quaystone.com",
+  "from_name": "Quaystone Careers",
+  "to_email": "candidate@example.com",
+  "subject": "Next steps for your application",
+  "body_text": "Thanks for taking the time to chat last week. We would like to move you to the next round.\n\nPlease book a time with our hiring manager using the calendar below.\n\nBest,\nThe Quaystone Team",
+  "snippet": "Thanks for taking the time to chat last week. We would like to move you to the next round.  Please book a time",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "Quaystone Careers <talent@quaystone.com>",
+    "message-id": "<quaystone_next_steps@fixture.example>"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "message_id": "fixture-recruitee_role_at_company",
+  "thread_id": "fixture-thread-recruitee_role_at_company",
+  "received_at": "2026-07-15T12:00:00+00:00",
+  "from_email": "no-reply@recruitee.com",
+  "from_name": "no-reply",
+  "to_email": "candidate@example.com",
+  "subject": "Software Engineer at Cinderwood Games",
+  "body_text": "Thank you for applying.\n\nWe have received your application for this position and will be in touch.",
+  "snippet": "Thank you for applying.  We have received your application for this position and will be in touch.",
+  "labels": [
+    "INBOX",
+    "CATEGORY_UPDATES"
+  ],
+  "headers": {
+    "from": "no-reply <no-reply@recruitee.com>",
+    "message-id": "<recruitee_role_at_company@fixture.example>"
+  }
+}
