@@ -65,6 +65,56 @@ creates no duplicate events and no duplicate applications. The resume cursor is 
 advanced after the batch has committed, so the worst case is re-fetching mail you already
 have.
 
+### Classifier backends
+
+Two backends, selected by `JOBTRACK_CLASSIFY_BACKEND`:
+
+| Backend | What it does |
+|---|---|
+| `rules` (default) | Pure pattern engine. Deterministic, instant, fully offline. |
+| `ollama` | A local LLM leads, with `rules` as the fallback. |
+
+The split is not arbitrary. Pattern tables are good at sorting mail into event types and
+bad at pulling a company or a job title out of prose — on a real 102-application mailbox
+the rules engine extracted a usable role for **21%** of them, and produced companies like
+`this time` and `our Software Engineer` by grabbing noun phrases out of rejection text. The
+LLM is the reverse, so with `backend = ollama` it leads and the rules catch it when it is
+unsure.
+
+**Losing Ollama degrades quality, not uptime.** A stopped daemon, a timeout, or a malformed
+response all score 0.0, and the composite falls through to the rules engine. `sync` keeps
+working.
+
+#### Setting it up
+
+```bash
+brew install ollama          # or however you like
+ollama serve
+ollama pull qwen2.5:7b
+
+cp .env.example .env         # then edit
+.venv/bin/jobtrack reclassify   # re-run the classifier over stored mail
+```
+
+Reckon on roughly **8 seconds per message** with a 7B model, so a first pass over a large
+mailbox takes a while. Responses are cached on `(prompt_sha, model_digest, message_id)`, so
+every later `reclassify` is instant and byte-identical. A 3–4B model is several times faster
+at this task and worth benchmarking — see PLAN.md §8 for the shortlist and
+`jobtrack.classify.evaluate` for the harness that scores them against your review labels.
+
+#### Reproducibility
+
+The classifier is contractually pure: the same email must always produce the same output.
+That is held together by `temperature=0`, a fixed seed, grammar-constrained decoding via
+Ollama's `format` parameter, a model pinned by **digest and quantization** rather than tag,
+and the response cache. `classifier_version` is the prompt's SHA-256 plus the model digest
+plus the quantization level, so editing `classify/prompts/classify_v1.txt`, upgrading the
+model, or changing quantization all invalidate old attributions instead of silently changing
+what stored rows mean.
+
+A fixed seed only gives determinism on one machine with one build. Treat an Ollama upgrade
+as a version bump.
+
 ### Corrections stick
 
 `jobtrack review` writes an *override*, which is applied at read time and always wins.
@@ -113,6 +163,17 @@ $JOBTRACK_HOME/
 ```
 
 `config.toml` is optional. A missing file is not an error.
+
+Classifier settings can also come from a `.env` file in the working directory — see
+`.env.example`. Precedence, lowest first: **defaults → config.toml → .env → real environment
+variables**. `.env` is gitignored.
+
+```bash
+JOBTRACK_CLASSIFY_BACKEND=ollama
+JOBTRACK_OLLAMA_MODEL=qwen2.5:7b
+JOBTRACK_OLLAMA_HOST=http://localhost:11434
+JOBTRACK_MIN_CONFIDENCE=0.60
+```
 
 ```toml
 [gmail]

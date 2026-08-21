@@ -904,10 +904,39 @@ the previous signatures stops compiling.
 writes an `Override` and never mutates an event. Re-deriving machine output is the separate
 case I6 describes, and `reapply_classification` is confined to it.
 
-## 10. Future — M7 Ollama classifier (Phase 3, not now)
+## 10. M7 Ollama classifier (Phase 3 — LANDED)
 
-Specified so Phase 1 leaves the right seams. Implementing it must require **zero changes** to
-M1, M3, M4, M5, or M6 — only constructing a different `Classifier` in `cli.py`.
+The seam held: implementing M7 required **zero changes** to M1, M3, M4, M5, or M6, and none
+to M2's `base.py` either — only a different `Classifier` constructed in `cli.py`.
+
+Three deviations from the sketch below, all found by building it:
+
+1. **The LLM is the *primary*, not the fallback.** The sketch assumed
+   `CompositeClassifier(RulesClassifier(), OllamaClassifier())`. Measured on a real mailbox
+   the rules engine got event types largely right and extracted a usable role for only 21%
+   of applications, so the wiring is inverted: `CompositeClassifier(OllamaClassifier(),
+   RulesClassifier(), min_confidence=0.60)`. The composite is symmetric, so this needed no
+   code change — only a different call.
+
+2. **`version` is a plain attribute, not a `@property`.** The `Classifier` Protocol declares
+   `version: str` as a settable variable, which a read-only property does not satisfy. The
+   value is fixed at construction anyway.
+
+3. **The prompt needs an explicit triage gate.** A single-stage classification prompt labels
+   every newsletter and social notification an application and invents a company for it —
+   1/15 agreement with rules on a real sample. Asking "is this even job mail?" *first*, and
+   forcing UNKNOWN with null fields when the answer is no, took that to 15/15. The gate is
+   part of the prompt template and therefore part of `classifier_version`.
+
+Also worth recording: `classify()` never raising is what keeps `sync` alive, because
+`CompositeClassifier.classify` calls the primary outside any try/except. A transport or
+schema failure returns a confidence-0.0 sentinel, which the composite replaces with the
+rules answer.
+
+M7 adds **no runtime dependency** — stdlib `urllib` for HTTP, and a hand-rolled `.env`
+parser in `cli.py`, because adding one would mean editing M0's `pyproject.toml`.
+
+The original specification follows.
 
 ```python
 class OllamaClassifier:
