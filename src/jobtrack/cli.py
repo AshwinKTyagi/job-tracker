@@ -16,20 +16,24 @@ Exit codes (PLAN.md §6)::
 from __future__ import annotations
 
 import logging
+import os
 import statistics
 import webbrowser
 from collections import Counter
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Final
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
 from jobtrack.classify import CompositeClassifier, RulesClassifier
 from jobtrack.classify.base import Classifier
-from jobtrack.config import Config, load_config
+from jobtrack.classify.ollama import DEFAULT_HOST, OllamaClassifier
+from jobtrack.config import ClassifyConfig, Config, load_config
 from jobtrack.errors import (
     AuthError,
     ClassificationError,
@@ -63,6 +67,24 @@ _VALID_EXPORT_FORMATS: Final[frozenset[str]] = frozenset({"csv", "xlsx"})
 #: Single-letter answers accepted by the review prompt.
 _REVIEW_ACTIONS: Final[frozenset[str]] = frozenset({"a", "c", "s", "q"})
 
+#: Optional .env files, lowest precedence first. A real environment variable always wins,
+#: so `JOBTRACK_OLLAMA_MODEL=x jobtrack sync` overrides whatever the file says.
+_DOTENV_PATHS: Final[tuple[str, ...]] = (".env",)
+
+#: Environment overrides for the classifier. config.py deliberately never reads the
+#: environment beyond JOBTRACK_HOME, so the overlay is applied here, in the composition
+#: root, and passed down explicitly like every other piece of Config.
+ENV_BACKEND: Final[str] = "JOBTRACK_CLASSIFY_BACKEND"
+ENV_OLLAMA_MODEL: Final[str] = "JOBTRACK_OLLAMA_MODEL"
+ENV_OLLAMA_HOST: Final[str] = "JOBTRACK_OLLAMA_HOST"
+ENV_MIN_CONFIDENCE: Final[str] = "JOBTRACK_MIN_CONFIDENCE"
+
+#: Backends that turn the Ollama classifier on. Anything else means rules-only.
+_OLLAMA_BACKENDS: Final[frozenset[str]] = frozenset({"ollama", "ollama+rules", "rules+ollama"})
+
+#: Where cached Ollama responses live, relative to JOBTRACK_HOME.
+CACHE_DIRNAME: Final[str] = "cache"
+
 console = Console()
 
 
@@ -77,9 +99,111 @@ def _configure_logging(verbose: bool = False) -> None:
     )
 
 
+def _parse_dotenv(text: str) -> dict[str, str]:
+    """Parse .env content into a mapping.
+
+    Deliberately minimal — ``KEY=value`` one per line, ``#`` comments, an optional
+    ``export`` prefix, and optional matching quotes. Hand-rolled rather than taking a
+    dependency, because adding one would mean editing M0's pyproject.toml.
+
+    Args:
+        text: The file's contents.
+
+    Returns:
+        The parsed keys and values, with surrounding quotes stripped.
+    """
+    values: dict[str, str] = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        line = line.removeprefix("export ").strip()
+        key, separator, value = line.partition("=")
+        if not separator:
+            continue
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if key:
+            values[key] = value
+    return values
+
+
+def _load_dotenv(paths: Sequence[str] | None = None) -> None:
+    """Load .env files into the process environment without overriding real variables.
+
+    A missing or unreadable file is not an error — .env is a convenience, and every value
+    it can set has a working default.
+
+    ``paths`` defaults to :data:`_DOTENV_PATHS`, read at call time rather than bound as a
+    default argument, so tests can neutralize it by patching the module attribute.
+
+    Args:
+        paths: Candidate files, relative to the working directory. None means the default.
+    """
+    for candidate in _DOTENV_PATHS if paths is None else paths:
+        path = Path(candidate)
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for key, value in _parse_dotenv(content).items():
+            os.environ.setdefault(key, value)
+        logger.debug("loaded environment overrides from %s", path)
+
+
+def _apply_env_overrides(config: Config) -> Config:
+    """Overlay classifier settings from the environment onto a loaded Config.
+
+    ``config.py`` never consults the environment itself (beyond JOBTRACK_HOME), so this is
+    where .env and real environment variables enter. Precedence, lowest first: defaults,
+    config.toml, .env, real environment.
+
+    Args:
+        config: The configuration loaded from disk.
+
+    Returns:
+        A copy carrying any overrides, or the original when none were set.
+
+    Raises:
+        ConfigError: an override was present but unparseable.
+    """
+    updates: dict[str, object] = {}
+    for key, field in (
+        (ENV_BACKEND, "backend"),
+        (ENV_OLLAMA_MODEL, "ollama_model"),
+        (ENV_OLLAMA_HOST, "ollama_host"),
+    ):
+        value = os.environ.get(key)
+        if value is not None and value.strip():
+            updates[field] = value.strip()
+
+    raw_confidence = os.environ.get(ENV_MIN_CONFIDENCE)
+    if raw_confidence is not None and raw_confidence.strip():
+        try:
+            updates["min_confidence"] = float(raw_confidence)
+        except ValueError as exc:
+            raise ConfigError(
+                f"{ENV_MIN_CONFIDENCE} must be a number, got {raw_confidence!r}"
+            ) from exc
+
+    if not updates:
+        return config
+    try:
+        # model_validate, not model_copy(update=...): model_copy bypasses validation in
+        # pydantic v2, so a JOBTRACK_MIN_CONFIDENCE of 5.0 would sail straight through the
+        # [0, 1] bound and only surface as nonsense much later.
+        classify = ClassifyConfig.model_validate({**config.classify.model_dump(), **updates})
+    except ValidationError as exc:
+        raise ConfigError(f"invalid classifier override in the environment: {exc}") from exc
+    return config.model_copy(update={"classify": classify})
+
+
 def _load_config() -> Config:
     """Resolve runtime configuration, letting ConfigError reach ``main``."""
-    return load_config()
+    _load_dotenv()
+    return _apply_env_overrides(load_config())
 
 
 def _open_store(config: Config) -> Store:
@@ -103,17 +227,43 @@ def _open_store(config: Config) -> Store:
 def _build_classifier(config: Config) -> Classifier:
     """Construct the configured classifier stack.
 
-    Phase 1 ships rules-only; the composite wrapper is what M7 slots an Ollama backend
-    into without touching any caller.
+    With ``backend = "ollama"`` the local model leads and the rules engine becomes the
+    fallback, which is the wiring the field-extraction quality actually calls for: rules
+    are strong at sorting mail into event types and weak at pulling a company or title out
+    of prose, and the LLM is the reverse. ``OllamaClassifier.classify`` never raises, so a
+    stopped daemon simply scores 0.0 and the composite falls through to rules.
+
+    Any other backend value is rules-only.
 
     Args:
         config: Resolved runtime configuration.
 
     Returns:
         The classifier the CLI should hand to ``run_sync``.
+
+    Raises:
+        ConfigError: the Ollama backend is selected but no model is named.
     """
-    rules = RulesClassifier(min_confidence=config.classify.min_confidence)
-    return CompositeClassifier(rules, None, min_confidence=config.classify.min_confidence)
+    threshold = config.classify.min_confidence
+    rules = RulesClassifier(min_confidence=threshold)
+
+    if config.classify.backend.strip().lower() not in _OLLAMA_BACKENDS:
+        return CompositeClassifier(rules, None, min_confidence=threshold)
+
+    model = config.classify.ollama_model
+    if not model:
+        raise ConfigError(
+            f"backend {config.classify.backend!r} needs a model — "
+            f"set {ENV_OLLAMA_MODEL} in .env or ollama_model in config.toml"
+        )
+
+    ollama = OllamaClassifier(
+        model,
+        host=config.classify.ollama_host or DEFAULT_HOST,
+        cache=config.home / CACHE_DIRNAME,
+    )
+    logger.info("classifier: ollama %s (%s) with rules fallback", model, ollama.version)
+    return CompositeClassifier(ollama, rules, min_confidence=threshold)
 
 
 def _build_source(config: Config) -> EmailSource:

@@ -14,7 +14,9 @@ from jobtrack.classify.confidence import (
     needs_review,
     score_confidence,
 )
+from jobtrack.classify.evaluate import evaluate
 from jobtrack.classify.normalize import normalize_company, normalize_role, role_similarity
+from jobtrack.classify.ollama import OllamaClassifier
 from jobtrack.classify.rules import (
     RulesClassifier,
     detect_ats,
@@ -30,8 +32,10 @@ __all__ = [
     "DEFAULT_MIN_CONFIDENCE",
     "Classifier",
     "CompositeClassifier",
+    "OllamaClassifier",
     "RulesClassifier",
     "detect_ats",
+    "evaluate",
     "extract_company",
     "extract_location",
     "extract_role",

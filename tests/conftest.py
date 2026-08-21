@@ -136,3 +136,24 @@ def _no_real_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[N
     """Guard: JOBTRACK_HOME always points somewhere disposable during tests."""
     monkeypatch.setenv("JOBTRACK_HOME", str(tmp_path / "env-home"))
     yield
+
+
+@pytest.fixture(autouse=True)
+def _no_developer_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Guard: the suite must not inherit the developer's .env or JOBTRACK_* overrides.
+
+    Sibling of :func:`_no_real_home`. Without this a local ``.env`` selecting the Ollama
+    backend makes ``cli._load_config`` build a real LLM client mid-test, which then reaches
+    for the network — tests that pass on a clean checkout and fail on a working machine.
+    """
+    from jobtrack import cli
+
+    for key in (
+        cli.ENV_BACKEND,
+        cli.ENV_OLLAMA_MODEL,
+        cli.ENV_OLLAMA_HOST,
+        cli.ENV_MIN_CONFIDENCE,
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(cli, "_DOTENV_PATHS", ())
+    yield
