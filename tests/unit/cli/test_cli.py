@@ -7,6 +7,7 @@ run against a disposable home.
 
 from __future__ import annotations
 
+import io
 import re
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from rich.console import Console
 from typer.testing import CliRunner
 
 from jobtrack import cli
@@ -217,6 +219,62 @@ def test_reclassify_all_clears_reviewed_rows_too(seeded: Path) -> None:
     result = runner.invoke(cli.app, ["reclassify", "--all"])
     assert result.exit_code == 0
     assert "cleared" in result.output
+
+
+# --- progress ---------------------------------------------------------------
+
+
+def test_progress_bar_is_off_when_disabled() -> None:
+    """The explicit opt-out yields nothing to report to."""
+    with cli._progress_bar(enabled=False) as progress:
+        assert progress is None
+
+
+def test_progress_bar_is_off_when_output_is_not_a_terminal() -> None:
+    """Captured or piped output must stay free of cursor control codes."""
+    with cli._progress_bar() as progress:
+        assert progress is None
+
+
+def test_progress_bar_draws_on_a_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """On a real terminal the phases and the count both make it to the screen."""
+    buffer = io.StringIO()
+    monkeypatch.setattr(cli, "console", Console(file=buffer, force_terminal=True, width=100))
+
+    with cli._progress_bar() as progress:
+        assert progress is not None
+        progress.start("classifying", 2)
+        progress.advance()
+
+    drawn = buffer.getvalue()
+    assert "classifying" in drawn
+    assert "1/2" in drawn
+
+
+def test_progress_reuses_one_task_across_phases(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A second start() retargets the same bar rather than stacking a new one."""
+    buffer = io.StringIO()
+    monkeypatch.setattr(cli, "console", Console(file=buffer, force_terminal=True, width=100))
+
+    with cli._progress_bar() as progress:
+        assert isinstance(progress, cli._RichProgress)
+        progress.start("fetching mail")
+        progress.start("classifying", 3)
+        assert len(progress._progress.tasks) == 1
+        assert progress._progress.tasks[0].total == 3
+
+
+def test_reclassify_reports_progress_on_a_terminal(
+    seeded: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The command wires the bar in, not just run_sync."""
+    buffer = io.StringIO()
+    monkeypatch.setattr(cli, "console", Console(file=buffer, force_terminal=True, width=100))
+
+    result = runner.invoke(cli.app, ["reclassify"])
+
+    assert result.exit_code == 0
+    assert "reclassifying" in buffer.getvalue()
 
 
 # --- review -----------------------------------------------------------------

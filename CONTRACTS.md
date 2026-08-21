@@ -933,6 +933,36 @@ Also worth recording: `classify()` never raising is what keeps `sync` alive, bec
 schema failure returns a confidence-0.0 sentinel, which the composite replaces with the
 rules answer.
 
+## 11. Terminal progress (Phase 3 — LANDED)
+
+`sync` and `reclassify` both walk a batch whose per-item cost is an Ollama round trip, so
+both can sit silent for minutes. They now drive a transient `rich` progress bar.
+
+One additive deviation, in the same shape as §9's:
+
+1. **`run_sync` gained `progress`.** Keyword-only, defaulting to `None`, appended after
+   `full`. Existing calls — including every e2e test — are unaffected and report nothing.
+
+```python
+class ProgressReporter(Protocol):
+    """A sink for the progress of a long loop."""
+    def start(self, description: str, total: int | None = None) -> None: ...
+    def advance(self) -> None: ...
+```
+
+`run_sync` and `reclassify` report *through* this Protocol rather than drawing anything
+themselves, which keeps `cli.py` the only module that writes to the terminal and lets the
+tests drive the loops with a recorder. `cli._progress_bar()` is the only implementation: it
+yields a bar when `console.is_terminal`, and `None` otherwise, so piped output and captured
+test output stay free of control codes. The bar is transient — it erases itself on exit,
+leaving the command's own summary table as the only thing on screen.
+
+The sync bar runs two phases against one reusable task: an indeterminate `fetching mail`
+(the message count is a fetch *result*), then a determinate `classifying` over the batch.
+Every message consumes exactly one unit, including one skipped as already-seen (I1) or one
+whose classification failed — the loop body sits in a `try/finally` for that reason, so the
+bar always reaches its total.
+
 M7 adds **no runtime dependency** — stdlib `urllib` for HTTP, and a hand-rolled `.env`
 parser in `cli.py`, because adding one would mean editing M0's `pyproject.toml`.
 

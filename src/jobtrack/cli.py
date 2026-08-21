@@ -20,14 +20,24 @@ import os
 import statistics
 import webbrowser
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Final
+from typing import Annotated, Final, Protocol
 
 import typer
 from pydantic import ValidationError
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskID,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.table import Table
 
 from jobtrack.classify import CompositeClassifier, RulesClassifier
@@ -86,6 +96,80 @@ _OLLAMA_BACKENDS: Final[frozenset[str]] = frozenset({"ollama", "ollama+rules", "
 CACHE_DIRNAME: Final[str] = "cache"
 
 console = Console()
+
+
+# --- progress ---------------------------------------------------------------
+
+
+class ProgressReporter(Protocol):
+    """A sink for the progress of a long loop.
+
+    ``run_sync`` and ``reclassify`` report *through* this rather than drawing anything
+    themselves, so the loops stay testable: a test passes a recorder, the terminal gets
+    :class:`_RichProgress`, and a piped or captured run gets nothing at all.
+    """
+
+    def start(self, description: str, total: int | None = None) -> None:
+        """Begin a phase, replacing any phase in flight.
+
+        Args:
+            description: Label shown beside the bar.
+            total: Units this phase will report, or None when it is not yet known —
+                which renders as an indeterminate bar rather than a wrong one.
+        """
+
+    def advance(self) -> None:
+        """Record one unit of the current phase as done."""
+
+
+class _RichProgress:
+    """A :class:`ProgressReporter` drawing one reusable bar on ``console``."""
+
+    def __init__(self, progress: Progress) -> None:
+        self._progress = progress
+        self._task: TaskID | None = None
+
+    def start(self, description: str, total: int | None = None) -> None:
+        """Retarget the single task, so phases replace each other in place."""
+        if self._task is None:
+            self._task = self._progress.add_task(description, total=total)
+        else:
+            self._progress.reset(self._task, description=description, total=total)
+
+    def advance(self) -> None:
+        """Advance the bar by one unit."""
+        if self._task is not None:
+            self._progress.advance(self._task)
+
+
+@contextmanager
+def _progress_bar(*, enabled: bool = True) -> Iterator[ProgressReporter | None]:
+    """Yield a live progress reporter for the duration of the block.
+
+    The bar is transient: it erases itself on the way out, leaving the command's own
+    summary as the only thing on screen.
+
+    Args:
+        enabled: Caller's opt-out. Even when True the bar is suppressed unless the
+            console is a real terminal, so piped output and captured test output stay
+            free of control codes.
+
+    Yields:
+        A reporter to hand to the loop, or None when there is nowhere to draw.
+    """
+    if not (enabled and console.is_terminal):
+        yield None
+        return
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        yield _RichProgress(progress)
 
 
 # --- shared plumbing --------------------------------------------------------
@@ -379,6 +463,7 @@ def run_sync(
     limit: int | None = None,
     since: datetime | None = None,
     full: bool = False,
+    progress: ProgressReporter | None = None,
 ) -> SyncReport:
     """Orchestrate one sync: fetch → dedupe → classify → link → record → advance cursor.
 
@@ -401,6 +486,8 @@ def run_sync(
         since: Explicit lower bound for the dated fetch path. Defaults to
             ``config.gmail.lookback_days`` before ``now`` when there is no cursor.
         full: Ignore any stored cursor and re-scan the lookback window.
+        progress: Optional sink for per-message progress. None reports nothing,
+            which is what every non-interactive caller wants.
 
     Returns:
         Counts describing what the sync did, plus any per-message errors it survived.
@@ -416,6 +503,9 @@ def run_sync(
         effective_since = now - timedelta(days=config.gmail.lookback_days)
     effective_limit = config.gmail.max_per_sync if limit is None else limit
 
+    if progress is not None:
+        # The message count is a fetch result, so this phase can only be indeterminate.
+        progress.start("fetching mail")
     result = source.fetch(
         query=config.gmail.query,
         since=effective_since,
@@ -431,30 +521,39 @@ def run_sync(
     needs_review = 0
     unknown = 0
 
+    if progress is not None:
+        progress.start("classifying", len(result.messages))
+
     for message in result.messages:
-        if store.has_message(message.message_id):
-            continue
-        new_messages += 1
+        # try/finally rather than an advance() before each `continue`: a skipped or failed
+        # message still consumed one unit of the bar.
         try:
-            classification = classifier.classify(message)
-        except ClassificationError as exc:
-            errors.append(f"{message.message_id}: {exc}")
-            continue
+            if store.has_message(message.message_id):
+                continue
+            new_messages += 1
+            try:
+                classification = classifier.classify(message)
+            except ClassificationError as exc:
+                errors.append(f"{message.message_id}: {exc}")
+                continue
 
-        if classification.event_type is EventType.UNKNOWN:
-            unknown += 1
-        if classification.needs_review:
-            needs_review += 1
-        if dry_run:
-            continue
+            if classification.event_type is EventType.UNKNOWN:
+                unknown += 1
+            if classification.needs_review:
+                needs_review += 1
+            if dry_run:
+                continue
 
-        store.record_message(message)
-        store.record_classification(classification)
-        event = store.link_and_record_event(message, classification, now=now)
-        events_created += 1
-        if event.application_id is not None and event.application_id not in known_applications:
-            known_applications.add(event.application_id)
-            applications_created += 1
+            store.record_message(message)
+            store.record_classification(classification)
+            event = store.link_and_record_event(message, classification, now=now)
+            events_created += 1
+            if event.application_id is not None and event.application_id not in known_applications:
+                known_applications.add(event.application_id)
+                applications_created += 1
+        finally:
+            if progress is not None:
+                progress.advance()
 
     if not dry_run and result.next_cursor is not None:
         store.set_cursor(source.name, result.next_cursor, synced_at=now)
@@ -508,7 +607,7 @@ def sync(
     """Fetch new mail, classify it, and record the resulting events."""
     config = _load_config()
     lower_bound = _parse_since(since)
-    with _open_store(config) as store:
+    with _open_store(config) as store, _progress_bar() as progress:
         report = run_sync(
             _build_source(config),
             _build_classifier(config),
@@ -519,6 +618,7 @@ def sync(
             limit=limit,
             since=lower_bound,
             full=full,
+            progress=progress,
         )
     _render_sync_report(report, dry_run=dry_run)
 
@@ -593,11 +693,15 @@ def reclassify(
     config = _load_config()
     classifier = _build_classifier(config)
     now = datetime.now(UTC)
-    with _open_store(config) as store:
+    with _open_store(config) as store, _progress_bar() as progress:
         cleared = store.clear_classifications(only_unreviewed=not all)
         messages = store.list_messages()
+        if progress is not None:
+            progress.start("reclassifying", len(messages))
         for message in messages:
             store.reapply_classification(message, classifier.classify(message), now=now)
+            if progress is not None:
+                progress.advance()
         flagged = sum(1 for row in store.list_applications(now=now) if row.needs_review)
     console.print(f"cleared {cleared} classification(s), reclassified {len(messages)} message(s)")
     if flagged:
@@ -811,6 +915,7 @@ __all__ = [
     "EXIT_OK",
     "EXIT_TRANSIENT",
     "EXIT_USAGE",
+    "ProgressReporter",
     "app",
     "main",
     "run_sync",

@@ -97,7 +97,9 @@ cp .env.example .env         # then edit
 ```
 
 Reckon on roughly **8 seconds per message** with a 7B model, so a first pass over a large
-mailbox takes a while. Responses are cached on `(prompt_sha, model_digest, message_id)`, so
+mailbox takes a while — `sync` and `reclassify` both draw a progress bar so you can see how
+far along it is. The bar appears only on a terminal, so a cron redirect or a pipe stays
+clean. Responses are cached on `(prompt_sha, model_digest, message_id)`, so
 every later `reclassify` is instant and byte-identical. A 3–4B model is several times faster
 at this task and worth benchmarking — see PLAN.md §8 for the shortlist and
 `jobtrack.classify.evaluate` for the harness that scores them against your review labels.
