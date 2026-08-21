@@ -280,3 +280,48 @@ def test_sync_flags_low_confidence_messages_for_review(
     report = run_sync(FakeSource(fixtures), classifier, store, config, now=NOW)
 
     assert len(store.pending_review()) == report.needs_review
+
+
+class RecordingProgress:
+    """A ProgressReporter that records what it was told instead of drawing anything."""
+
+    def __init__(self) -> None:
+        self.phases: list[tuple[str, int | None]] = []
+        self.ticks = 0
+
+    def start(self, description: str, total: int | None = None) -> None:
+        """Record the phase and its expected size."""
+        self.phases.append((description, total))
+
+    def advance(self) -> None:
+        """Record one unit of work."""
+        self.ticks += 1
+
+
+def test_sync_reports_progress_for_every_fetched_message(
+    store: Store, classifier: Classifier, config: Config, fixtures: list[RawMessage]
+) -> None:
+    """The bar is driven from the batch: one indeterminate fetch phase, then one tick each."""
+    from jobtrack.cli import run_sync
+
+    progress = RecordingProgress()
+
+    run_sync(FakeSource(fixtures), classifier, store, config, now=NOW, progress=progress)
+
+    assert progress.phases == [("fetching mail", None), ("classifying", len(fixtures))]
+    assert progress.ticks == len(fixtures)
+
+
+def test_sync_progress_counts_skipped_messages_too(
+    store: Store, classifier: Classifier, config: Config, fixtures: list[RawMessage]
+) -> None:
+    """A replay records no new events (I1), but the bar still reaches its total."""
+    from jobtrack.cli import run_sync
+
+    run_sync(FakeSource(fixtures), classifier, store, config, now=NOW)
+    progress = RecordingProgress()
+
+    report = run_sync(FakeSource(fixtures), classifier, store, config, now=NOW, progress=progress)
+
+    assert report.new_messages == 0
+    assert progress.ticks == len(fixtures)
