@@ -26,3 +26,8 @@ dashboard.html
 
 # --- os ---
 .DS_Store
+
+# Local environment overrides (Ollama host/model, etc.) — may hold secrets.
+.env
+.env.*
+!.env.example
